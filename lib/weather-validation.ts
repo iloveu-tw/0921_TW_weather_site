@@ -57,6 +57,8 @@ function normalizeStation(value: unknown): WeatherObservationInput {
   return {
     station_id: asString(station.StationId),
     station_name: asString(station.StationName),
+    county: asString(geoInfo.CountyName),
+    town: asString(geoInfo.TownName),
     latitude: Number(coordinate.StationLatitude),
     longitude: Number(coordinate.StationLongitude),
     temperature: parseMetric(weather.AirTemperature, -50, 60),
@@ -106,7 +108,12 @@ export function validateWeatherSnapshot(
   const stationIds = new Set<string>();
 
   for (const record of records) {
-    if (!record.station_id || !record.station_name) {
+    if (
+      !record.station_id ||
+      !record.station_name ||
+      !record.county ||
+      !record.town
+    ) {
       throw new WeatherSyncError('REQUIRED_FIELD_MISSING', '測站必要欄位缺失');
     }
 

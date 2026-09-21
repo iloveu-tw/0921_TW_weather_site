@@ -25,6 +25,8 @@ async function getPostgresObservations(): Promise<WeatherObservation[]> {
       id,
       station_id,
       station_name,
+      county,
+      town,
       latitude,
       longitude,
       temperature,
@@ -91,6 +93,8 @@ export async function replaceWeatherObservations(
       INSERT INTO weather_observations (
         station_id,
         station_name,
+        county,
+        town,
         latitude,
         longitude,
         temperature,
@@ -102,6 +106,8 @@ export async function replaceWeatherObservations(
       SELECT
         station_id,
         station_name,
+        county,
+        town,
         latitude,
         longitude,
         temperature,
@@ -112,6 +118,8 @@ export async function replaceWeatherObservations(
       FROM jsonb_to_recordset(${payload}::jsonb) AS item(
         station_id TEXT,
         station_name TEXT,
+        county TEXT,
+        town TEXT,
         latitude DOUBLE PRECISION,
         longitude DOUBLE PRECISION,
         temperature DOUBLE PRECISION,

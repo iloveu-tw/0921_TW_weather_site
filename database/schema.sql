@@ -2,6 +2,8 @@ CREATE TABLE IF NOT EXISTS weather_observations (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     station_id TEXT NOT NULL UNIQUE,
     station_name TEXT NOT NULL,
+    county TEXT NOT NULL,
+    town TEXT NOT NULL,
     latitude DOUBLE PRECISION NOT NULL,
     longitude DOUBLE PRECISION NOT NULL,
     temperature DOUBLE PRECISION,

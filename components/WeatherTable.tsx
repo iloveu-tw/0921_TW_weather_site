@@ -25,12 +25,10 @@ export default function WeatherTable({
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
-  // 台灣常見縣市清單供快速篩選
-  const counties = [
-    '基隆市', '臺北市', '新北市', '桃園市', '新竹市', '新竹縣', '苗栗縣',
-    '臺中市', '彰化縣', '南投縣', '雲林縣', '嘉義市', '嘉義縣', '臺南市',
-    '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣'
-  ];
+  const counties = useMemo(
+    () => [...new Set(stations.map((station) => station.county))].sort(),
+    [stations]
+  );
 
   // 篩選測站
   const filteredStations = useMemo(() => {
@@ -41,11 +39,10 @@ export default function WeatherTable({
         station.station_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         station.station_id.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // 縣市篩選 (若測站名稱包含縣市簡寫或全稱)
+      // 使用 CWA 明確縣市欄位篩選，不再從測站名稱推測
       const matchesCounty =
         selectedCounty === 'all' ||
-        station.station_name.includes(selectedCounty.replace('市', '').replace('縣', '')) ||
-        (station.county && station.county.includes(selectedCounty));
+        station.county === selectedCounty;
 
       return matchesSearch && matchesCounty;
     });

@@ -7,6 +7,8 @@ export interface WeatherObservation {
   id: number;
   station_id: string;
   station_name: string;
+  county: string;
+  town: string;
   latitude: number;
   longitude: number;
   temperature: number | null;
@@ -14,7 +16,6 @@ export interface WeatherObservation {
   rainfall: number | null;
   wind_speed: number | null;
   observation_time: string;
-  county?: string;
 }
 
 export interface WeatherApiSuccessResponse {
