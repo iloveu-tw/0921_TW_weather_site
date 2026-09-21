@@ -9,13 +9,23 @@ const execPromise = util.promisify(exec);
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
+  if (process.env.DATABASE_URL?.trim()) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'PostgreSQL 資料同步將於 P0-03 改由受保護的排程端點執行',
+      },
+      { status: 503 }
+    );
+  }
+
   try {
     const scriptPath = path.join(process.cwd(), 'scripts', 'fetch_weather.py');
     const { stdout, stderr } = await execPromise(`python3 "${scriptPath}"`);
     console.log('Python fetch output:', stdout);
     if (stderr) console.warn('Python fetch stderr:', stderr);
 
-    const refreshedData = getAllObservations();
+    const refreshedData = await getAllObservations();
 
     return NextResponse.json({
       success: true,

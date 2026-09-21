@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = getAllObservations();
+    const data = await getAllObservations();
     const updatedAt = data.length > 0 ? data[0].observation_time : new Date().toISOString();
 
     return NextResponse.json({
