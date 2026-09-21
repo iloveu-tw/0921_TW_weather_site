@@ -5,13 +5,30 @@ import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
 import WeatherStats from '@/components/WeatherStats';
 import WeatherTable from '@/components/WeatherTable';
-import { WeatherObservation } from '@/types/weather';
+import { WeatherApiResponse, WeatherObservation } from '@/types/weather';
 import { Loader2 } from 'lucide-react';
 
 // 動態載入 Leaflet 地圖
 const WeatherMap = dynamic(() => import('@/components/WeatherMap'), {
   ssr: false,
+  loading: () => (
+    <div className="map-loading-container">
+      <Loader2 className="loading-spinner" />
+      <span>正在初始化台灣 GIS 地圖圖台與氣象測站圖層...</span>
+    </div>
+  ),
 });
+
+async function fetchWeatherSnapshot() {
+  const response = await fetch('/api/weather', { cache: 'no-store' });
+  const body = (await response.json()) as WeatherApiResponse;
+
+  if (!response.ok || !body.success) {
+    throw new Error(body.success ? '氣象資料讀取失敗' : body.error.message);
+  }
+
+  return body;
+}
 
 export default function HomePage() {
   const [stations, setStations] = useState<WeatherObservation[]>([]);
@@ -19,28 +36,47 @@ export default function HomePage() {
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isMounted, setIsMounted] = useState<boolean>(false);
 
   useEffect(() => {
-    setIsMounted(true);
-    loadWeatherData();
+    let active = true;
+
+    void fetchWeatherSnapshot()
+      .then((result) => {
+        if (!active) return;
+        setStations(result.data);
+        setLastUpdated(result.updated_at ?? '');
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setErrorMsg(
+          error instanceof Error
+            ? error.message
+            : '連線到氣象 API 失敗，請稍後再試'
+        );
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // 取得最新氣象資料
-  const loadWeatherData = async () => {
+  const handleRetry = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+
     try {
-      setErrorMsg(null);
-      const res = await fetch('/api/weather');
-      const json = await res.json();
-      if (json.success) {
-        setStations(json.data);
-        setLastUpdated(json.updated_at);
-      } else {
-        setErrorMsg('無法讀取資料庫觀測紀錄: ' + (json.error || '未知錯誤'));
-      }
-    } catch (err) {
-      setErrorMsg('連線到氣象 API 失敗，請確認伺服器狀態');
-      console.error(err);
+      const result = await fetchWeatherSnapshot();
+      setStations(result.data);
+      setLastUpdated(result.updated_at ?? '');
+    } catch (error) {
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : '連線到氣象 API 失敗，請稍後再試'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -51,18 +87,34 @@ export default function HomePage() {
       {/* 頂部標題列 */}
       <Header lastUpdated={lastUpdated} />
 
-      {/* 錯誤通知列 */}
+      {/* 載入與錯誤狀態 */}
+      {isLoading && stations.length === 0 && (
+        <div className="status-banner" role="status">
+          <Loader2 className="status-icon loading-spinner" />
+          <span>正在讀取最新氣象資料...</span>
+        </div>
+      )}
+
       {errorMsg && (
-        <div className="error-banner">
+        <div className="error-banner" role="alert">
           <span>⚠️ {errorMsg}</span>
-          <button className="btn-dismiss" onClick={() => setErrorMsg(null)}>
-            關閉
+          <button className="btn-dismiss" onClick={handleRetry} disabled={isLoading}>
+            {isLoading ? '重試中...' : '重新讀取'}
+          </button>
+        </div>
+      )}
+
+      {!isLoading && !errorMsg && stations.length === 0 && (
+        <div className="status-banner empty" role="status">
+          <span>目前沒有可顯示的氣象觀測資料。</span>
+          <button className="btn-dismiss" onClick={handleRetry}>
+            重新讀取
           </button>
         </div>
       )}
 
       {/* 主要內容區 */}
-      <main className="main-content">
+      {stations.length > 0 && <main className="main-content">
         {/* 關鍵氣象指標統計卡 */}
         <WeatherStats data={stations} />
 
@@ -78,18 +130,11 @@ export default function HomePage() {
               <span className="section-badge">即時空間圖層</span>
             </div>
             <div className="map-outer-card">
-              {isMounted ? (
-                <WeatherMap
-                  stations={stations}
-                  selectedStation={selectedStation}
-                  onSelectStation={setSelectedStation}
-                />
-              ) : (
-                <div className="map-loading-container">
-                  <Loader2 className="loading-spinner" />
-                  <span>正在初始化台灣 GIS 地圖圖台與氣象測站圖層...</span>
-                </div>
-              )}
+              <WeatherMap
+                stations={stations}
+                selectedStation={selectedStation}
+                onSelectStation={setSelectedStation}
+              />
             </div>
           </section>
 
@@ -109,7 +154,7 @@ export default function HomePage() {
             />
           </section>
         </div>
-      </main>
+      </main>}
 
       {/* 底部頁尾 */}
       <footer className="app-footer">

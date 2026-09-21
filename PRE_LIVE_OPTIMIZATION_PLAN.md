@@ -65,8 +65,8 @@
 | P0-02 | P0 | 決定並建立正式環境資料架構 | 完成 | Neon 遷移、持久性、Build 與 Neon-only API 驗證通過 |
 | P0-03 | P0 | 保護資料更新端點與排程入口 | 完成 | `CRON_SECRET`、Neon 租約鎖、60 秒上限與 HTTP 行為驗證通過 |
 | P0-04 | P0 | 實作原子更新、資料驗證與失敗復原 | 完成 | CWA 876 筆原子同步、驗證拒絕與 Transaction 回滾測試通過 |
-| P0-05 | P0 | 修正 API 錯誤語意與前端錯誤狀態 | 待辦 | — |
-| P0-06 | P0 | 排除 ESLint／TypeScript／Build 問題 | 受阻 | ESLint 基準為 6 errors、4 warnings；尚待修改 |
+| P0-05 | P0 | 修正 API 錯誤語意與前端錯誤狀態 | 完成 | 200／503 Schema 與 Loading／Empty／Error／Retry 驗證通過 |
+| P0-06 | P0 | 排除 ESLint／TypeScript／Build 問題 | 待辦 | ESLint 已降為 4 errors、1 warning |
 | P1-01 | P1 | 建立正確的縣市資料欄位與篩選 | 待辦 | — |
 | P1-02 | P1 | 加入觀測時間、同步時間與資料新鮮度 | 待辦 | — |
 | P1-03 | P1 | 改善地圖效能與大量測站呈現 | 待辦 | — |
@@ -224,7 +224,7 @@
 
 ### P0-05 修正 API 錯誤語意與前端錯誤狀態
 
-**狀態：** `待辦`
+**狀態：** `完成`
 
 **問題**
 
@@ -245,15 +245,21 @@
 - API Response Schema 具備型別定義與測試。
 - 前端錯誤畫面提供可操作的重試或返回方式。
 
-**完成日期／驗證證據：** —
+**完成日期／驗證證據：** 2026-09-22
+
+- 2026-09-22：建立 `WeatherApiResponse` 判別聯集；成功回應包含 `count`、可為 `null` 的 `updated_at` 與資料陣列，錯誤回應包含固定 `code` 與安全訊息。
+- 2026-09-22：正常 Neon 讀取實測 HTTP 200、876 筆；以無效 `DATABASE_URL` 啟動隔離 Server 後實測 HTTP 503 與 `DATABASE_UNAVAILABLE`，回應未包含連線字串或內部例外。
+- 2026-09-22：首頁已分離 Loading、Empty、Error 與正常資料畫面，Empty／Error 均提供重新讀取操作。
+- 2026-09-22：移除首頁多餘的 Mounted state，改由 Dynamic Import loading 畫面處理地圖初始化；該頁 ESLint、TypeScript 與 Production Build 通過。
+- 2026-09-22：全專案 ESLint 從 6 errors、4 warnings 降至 4 errors、1 warning，剩餘項目移交 P0-06。
 
 ### P0-06 排除 ESLint、TypeScript 與 Production Build 問題
 
-**狀態：** `受阻`
+**狀態：** `待辦`
 
 **目前基準**
 
-- ESLint：6 errors、4 warnings。
+- ESLint：原始基準為 6 errors、4 warnings；P0-05 後為 4 errors、1 warning。
 - 已知類型包含 React Effect、函式宣告順序、未使用變數、明確 `any` 與 `prefer-const`。
 - Production Build 尚未於本階段驗證。
 
@@ -275,11 +281,7 @@ npm run build  → exit code 0
 - 不以忽略整個檔案或關閉核心規則作為主要解法。
 - Build 完成後首頁與兩個 API 路由仍可正常使用。
 
-**解除受阻條件**
-
-取得修改程式碼的明確批准後，依最小變更原則處理並重新驗證。
-
-**完成日期／驗證證據：** 2026-09-21 基準檢查：6 errors、4 warnings。
+**完成日期／驗證證據：** 2026-09-22 最新檢查：4 errors、1 warning。
 
 ## 6. P1 — 建議於首次上線前完成
 
@@ -495,6 +497,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-22 | 統一 `/api/weather` 成功／錯誤 Schema，資料庫失敗安全回覆 503，首頁加入 Loading／Empty／Error／Retry 狀態 | P0-05 完成；ESLint 降至 4 errors、1 warning，可以進入 P0-06 |
 | 2026-09-22 | 完成 CWA Node.js 擷取、快照驗證、Neon Transaction 原子替換、同步紀錄及成功／失敗復原測試 | P0-04 完成，可以進入 P0-05 |
 | 2026-09-22 | 依 CWA 後台明文規則確認更新授權碼後舊值永久失效，撤回先前 HTTP 狀態碼造成的過度保守判定 | P0-01 完成，不再列為 Live 阻擋項目 |
 | 2026-09-22 | 移除公開同步按鈕，完成 `CRON_SECRET` 驗證、Neon 租約鎖、60 秒上限及 401／200／409 HTTP 測試 | P0-03 完成，可以進入 P0-04 |

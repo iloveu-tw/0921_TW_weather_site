@@ -17,12 +17,24 @@ export interface WeatherObservation {
   county?: string;
 }
 
-export interface WeatherApiResponse {
-  success: boolean;
+export interface WeatherApiSuccessResponse {
+  success: true;
   count: number;
-  updated_at: string;
+  updated_at: string | null;
   data: WeatherObservation[];
 }
+
+export interface WeatherApiErrorResponse {
+  success: false;
+  error: {
+    code: 'DATABASE_UNAVAILABLE' | 'INTERNAL_ERROR';
+    message: string;
+  };
+}
+
+export type WeatherApiResponse =
+  | WeatherApiSuccessResponse
+  | WeatherApiErrorResponse;
 
 export interface WeatherStatsSummary {
   totalStations: number;

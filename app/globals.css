@@ -232,17 +232,39 @@ body::after {
   to { transform: rotate(360deg); }
 }
 
-/* Error Banner */
+/* Loading, Empty, and Error Banners */
+.status-banner,
 .error-banner {
+  margin: 16px 20px 0;
   padding: 12px 20px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: var(--radius-md);
-  color: #fca5a5;
   font-size: 0.88rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.status-banner {
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+}
+
+.status-banner.empty {
+  justify-content: space-between;
+}
+
+.status-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
 }
 
 .btn-dismiss {
