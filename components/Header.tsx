@@ -1,21 +1,13 @@
 'use client';
 
 import React from 'react';
-import { RefreshCw, MapPin, Database, Sparkles } from 'lucide-react';
+import { MapPin, Database } from 'lucide-react';
 
 interface HeaderProps {
   lastUpdated: string;
-  stationCount: number;
-  isRefreshing: boolean;
-  onRefresh: () => void;
 }
 
-export default function Header({
-  lastUpdated,
-  stationCount,
-  isRefreshing,
-  onRefresh,
-}: HeaderProps) {
+export default function Header({ lastUpdated }: HeaderProps) {
   // 格式化觀測時間顯示
   const formattedTime = lastUpdated
     ? new Date(lastUpdated).toLocaleString('zh-TW', {
@@ -61,17 +53,6 @@ export default function Header({
             <span className="meta-value highlight">{formattedTime}</span>
           </div>
         </div>
-
-        <button
-          id="btn-refresh-weather"
-          className={`btn-refresh ${isRefreshing ? 'loading' : ''}`}
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          title="從中央氣象署即時同步最新氣象資料"
-        >
-          <RefreshCw className={`btn-icon ${isRefreshing ? 'spin' : ''}`} />
-          <span>{isRefreshing ? '正在同步 CWA 資料庫...' : '即時同步氣象資料'}</span>
-        </button>
       </div>
     </header>
   );

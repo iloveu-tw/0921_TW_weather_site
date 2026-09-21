@@ -47,3 +47,34 @@ async function getPostgresObservations(): Promise<WeatherObservation[]> {
 export async function getAllObservations(): Promise<WeatherObservation[]> {
   return getPostgresObservations();
 }
+
+/**
+ * 取得氣象同步租約鎖，避免多個 Serverless 實例同時更新資料。
+ */
+export async function acquireWeatherSyncLock(runId: string): Promise<boolean> {
+  const sql = neon(getDatabaseUrl());
+  const rows = await sql`
+    INSERT INTO weather_sync_locks (lock_name, run_id, started_at, locked_until)
+    VALUES ('cwa_weather_refresh', ${runId}, NOW(), NOW() + INTERVAL '5 minutes')
+    ON CONFLICT (lock_name) DO UPDATE
+    SET
+      run_id = EXCLUDED.run_id,
+      started_at = EXCLUDED.started_at,
+      locked_until = EXCLUDED.locked_until
+    WHERE weather_sync_locks.locked_until < NOW()
+    RETURNING run_id
+  `;
+
+  return rows.length === 1;
+}
+
+/**
+ * 僅允許目前持有者釋放同步租約鎖。
+ */
+export async function releaseWeatherSyncLock(runId: string): Promise<void> {
+  const sql = neon(getDatabaseUrl());
+  await sql`
+    DELETE FROM weather_sync_locks
+    WHERE lock_name = 'cwa_weather_refresh' AND run_id = ${runId}
+  `;
+}

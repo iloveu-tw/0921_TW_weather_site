@@ -6,7 +6,7 @@
 > **目前分支**：`main`  
 > **本地開發伺服器**：`http://localhost:3000`  
 
-> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。安全的 CWA 雲端同步流程將於 P0-03 實作。
+> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，CWA 原子同步將於 P0-04 啟用。
 
 ---
 
@@ -72,7 +72,7 @@ taiwan-weather-site/
 ├── HANDOVER.md                # 本專案交接與進度備忘記錄檔
 ├── README.md                  # 專案官方說明文件
 ├── design.md                  # 24 堂課 AIoT DIC-2 完整專案設計規範
-├── next.config.ts             # Next.js 設定 (配置 serverExternalPackages: ['better-sqlite3'])
+├── next.config.ts             # Next.js 設定
 ├── package.json               # 專案依賴與執行腳本 (Next.js 16, React 19, Leaflet, Lucide)
 ├── tsconfig.json              # TypeScript 編譯設定檔
 │
@@ -81,11 +81,11 @@ taiwan-weather-site/
 │   ├── layout.tsx             # 根版面配置 (SEO 中繼資料、Google Fonts: Inter & Outfit)
 │   ├── page.tsx               # Web GIS 核心主儀表板頁面
 │   └── api/
-│       ├── weather/route.ts   # 氣象資料讀取 API (從 SQLite 讀取 876 筆觀測值回傳 JSON)
-│       └── refresh/route.ts   # 即時同步 API (觸發 Python 爬蟲抓取 CWA 最新資料並重載入庫)
+│       ├── weather/route.ts   # 氣象資料讀取 API (從 Neon PostgreSQL 回傳觀測值)
+│       └── refresh/route.ts   # 受 CRON_SECRET 與 Neon 租約鎖保護的同步入口
 │
 ├── components/                # 前端核心 React UI 元件
-│   ├── Header.tsx             # 頂部標題列、連線狀態指示與「即時同步氣象資料」按鈕
+│   ├── Header.tsx             # 頂部標題列與資料連線狀態指示
 │   ├── WeatherMap.tsx         # Leaflet Web GIS 圖台 (底圖切換、縣市圖層、876 站點、Popup、Fly-to)
 │   ├── WeatherStats.tsx       # 5 大氣象關鍵統計指標卡片 (最高溫、最低溫、最大降雨等)
 │   └── WeatherTable.tsx       # 測站數據清單 (搜尋、縣市篩選、排序、分頁與地圖飛入連動)
@@ -94,7 +94,7 @@ taiwan-weather-site/
 │   └── weather.db             # 本地 SQLite 資料庫 (存放 weather_observations 資料表，已 .gitignore)
 │
 ├── lib/
-│   └── database.ts            # better-sqlite3 資料庫查詢封裝模組
+│   └── database.ts            # Neon PostgreSQL 查詢與同步租約鎖封裝模組
 │
 ├── public/
 │   └── geo/

@@ -1,47 +1,82 @@
-import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import util from 'util';
-import path from 'path';
-import { getAllObservations } from '@/lib/database';
-
-const execPromise = util.promisify(exec);
+import { timingSafeEqual, randomUUID } from 'crypto';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  acquireWeatherSyncLock,
+  releaseWeatherSyncLock,
+} from '@/lib/database';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
-export async function POST() {
-  if (process.env.DATABASE_URL?.trim()) {
+function isAuthorized(request: NextRequest, secret: string): boolean {
+  const authorization = request.headers.get('authorization');
+  const expected = `Bearer ${secret}`;
+
+  if (!authorization) return false;
+
+  const actualBuffer = Buffer.from(authorization);
+  const expectedBuffer = Buffer.from(expected);
+
+  return (
+    actualBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(actualBuffer, expectedBuffer)
+  );
+}
+
+async function handleRefresh(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET?.trim();
+
+  if (!cronSecret) {
     return NextResponse.json(
       {
         success: false,
-        error: 'PostgreSQL 資料同步將於 P0-03 改由受保護的排程端點執行',
+        error: '資料同步服務尚未完成設定',
       },
       { status: 503 }
     );
   }
 
-  try {
-    const scriptPath = path.join(process.cwd(), 'scripts', 'fetch_weather.py');
-    const { stdout, stderr } = await execPromise(`python3 "${scriptPath}"`);
-    console.log('Python fetch output:', stdout);
-    if (stderr) console.warn('Python fetch stderr:', stderr);
+  if (!isAuthorized(request, cronSecret)) {
+    return NextResponse.json(
+      { success: false, error: '未授權的同步請求' },
+      { status: 401 }
+    );
+  }
 
-    const refreshedData = await getAllObservations();
+  const runId = randomUUID();
+
+  try {
+    const lockAcquired = await acquireWeatherSyncLock(runId);
+
+    if (!lockAcquired) {
+      return NextResponse.json(
+        { success: false, error: '資料同步工作正在執行中' },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: '氣象資料已成功從 CWA 擷取並更新至 SQLite 資料庫',
-      count: refreshedData.length,
-      updated_at: refreshedData.length > 0 ? refreshedData[0].observation_time : new Date().toISOString(),
-      data: refreshedData,
+      message: '受保護的同步入口已就緒；資料更新將於下一階段啟用',
+      status: 'ready',
     });
   } catch (error) {
-    console.error('Failed to refresh weather data:', error);
+    console.error('Weather refresh endpoint failed:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : '更新氣象資料失敗',
-      },
+      { success: false, error: '資料同步服務暫時無法使用' },
       { status: 500 }
     );
+  } finally {
+    await releaseWeatherSyncLock(runId).catch((error) => {
+      console.error('Failed to release weather sync lock:', error);
+    });
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleRefresh(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleRefresh(request);
 }

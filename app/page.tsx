@@ -18,7 +18,6 @@ export default function HomePage() {
   const [selectedStation, setSelectedStation] = useState<WeatherObservation | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState<boolean>(false);
 
@@ -47,36 +46,10 @@ export default function HomePage() {
     }
   };
 
-  // 點擊重新向 CWA 抓取並更新資料庫
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    setErrorMsg(null);
-    try {
-      const res = await fetch('/api/refresh', { method: 'POST' });
-      const json = await res.json();
-      if (json.success) {
-        setStations(json.data);
-        setLastUpdated(json.updated_at);
-      } else {
-        setErrorMsg('同步氣象署最新資料失敗: ' + (json.error || '請重試'));
-      }
-    } catch (err) {
-      setErrorMsg('發送同步請求失敗，請確認後端網路連線');
-      console.error(err);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   return (
     <div className="app-container">
       {/* 頂部標題列 */}
-      <Header
-        lastUpdated={lastUpdated}
-        stationCount={stations.length}
-        isRefreshing={isRefreshing}
-        onRefresh={handleRefresh}
-      />
+      <Header lastUpdated={lastUpdated} />
 
       {/* 錯誤通知列 */}
       {errorMsg && (

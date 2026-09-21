@@ -13,3 +13,10 @@ CREATE TABLE IF NOT EXISTS weather_observations (
 
 CREATE INDEX IF NOT EXISTS weather_observations_observation_time_idx
     ON weather_observations (observation_time DESC);
+
+CREATE TABLE IF NOT EXISTS weather_sync_locks (
+    lock_name TEXT PRIMARY KEY,
+    run_id UUID NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    locked_until TIMESTAMPTZ NOT NULL
+);
