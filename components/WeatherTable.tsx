@@ -54,8 +54,8 @@ export default function WeatherTable({
   // 排序
   const sortedStations = useMemo(() => {
     return [...filteredStations].sort((a, b) => {
-      let valA = a[sortField];
-      let valB = b[sortField];
+      const valA = a[sortField];
+      const valB = b[sortField];
 
       if (valA === null || valA === undefined) return 1;
       if (valB === null || valB === undefined) return -1;

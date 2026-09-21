@@ -12,13 +12,14 @@ interface WeatherMapProps {
 }
 
 type BaseMapType = 'esriDark' | 'osm' | 'satellite';
+type LeafletContainer = HTMLDivElement & { _leaflet_id?: number };
 
 export default function WeatherMap({
   stations,
   selectedStation,
   onSelectStation,
 }: WeatherMapProps) {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<LeafletContainer>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const baseTileGroupRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
@@ -56,14 +57,14 @@ export default function WeatherMap({
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapInstanceRef.current) return;
-    if ((mapContainerRef.current as any)._leaflet_id) return;
+    if (mapContainerRef.current._leaflet_id) return;
 
     let isCancelled = false;
 
     // 動態載入 Leaflet
     import('leaflet').then((L) => {
       if (isCancelled || !mapContainerRef.current) return;
-      if (mapInstanceRef.current || (mapContainerRef.current as any)._leaflet_id) return;
+      if (mapInstanceRef.current || mapContainerRef.current._leaflet_id) return;
 
       // 台灣地理中心與縮放等級 (中央約 23.7, 120.95)
       const map = L.map(mapContainerRef.current, {

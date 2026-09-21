@@ -66,7 +66,7 @@
 | P0-03 | P0 | 保護資料更新端點與排程入口 | 完成 | `CRON_SECRET`、Neon 租約鎖、60 秒上限與 HTTP 行為驗證通過 |
 | P0-04 | P0 | 實作原子更新、資料驗證與失敗復原 | 完成 | CWA 876 筆原子同步、驗證拒絕與 Transaction 回滾測試通過 |
 | P0-05 | P0 | 修正 API 錯誤語意與前端錯誤狀態 | 完成 | 200／503 Schema 與 Loading／Empty／Error／Retry 驗證通過 |
-| P0-06 | P0 | 排除 ESLint／TypeScript／Build 問題 | 待辦 | ESLint 已降為 4 errors、1 warning |
+| P0-06 | P0 | 排除 ESLint／TypeScript／Build 問題 | 完成 | ESLint 0、TypeScript 與 Production Build 通過，首頁與 API 回歸正常 |
 | P1-01 | P1 | 建立正確的縣市資料欄位與篩選 | 待辦 | — |
 | P1-02 | P1 | 加入觀測時間、同步時間與資料新鮮度 | 待辦 | — |
 | P1-03 | P1 | 改善地圖效能與大量測站呈現 | 待辦 | — |
@@ -255,7 +255,7 @@
 
 ### P0-06 排除 ESLint、TypeScript 與 Production Build 問題
 
-**狀態：** `待辦`
+**狀態：** `完成`
 
 **目前基準**
 
@@ -281,7 +281,14 @@ npm run build  → exit code 0
 - 不以忽略整個檔案或關閉核心規則作為主要解法。
 - Build 完成後首頁與兩個 API 路由仍可正常使用。
 
-**完成日期／驗證證據：** 2026-09-22 最新檢查：4 errors、1 warning。
+**完成日期／驗證證據：** 2026-09-22
+
+- 全專案 `npm run lint`：0 errors、0 warnings。
+- `npx tsc --noEmit`：exit code 0。
+- `npm run build`：Next.js 16.3.5 Production Build 成功。
+- 依專案內建 Next.js 字型文件改用 `next/font/google`，Inter／Outfit 在 Build 階段下載並自託管，瀏覽器不再直接請求 Google Fonts。
+- Leaflet 容器擴充欄位已改為明確 TypeScript 型別；排序區域的 `prefer-const` 問題已修正。
+- Production Server 回歸：首頁 HTTP 200、`/api/weather` HTTP 200 且為 876 筆／876 個唯一站號、未授權 `/api/refresh` 維持 HTTP 401。
 
 ## 6. P1 — 建議於首次上線前完成
 
@@ -497,6 +504,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-22 | 修正 Leaflet 型別、排序變數與 Next.js 字型載入；Lint、TypeScript、Build、首頁及 API 回歸全部通過 | P0-06 完成，所有可由程式碼處理的 P0 項目已完成 |
 | 2026-09-22 | 統一 `/api/weather` 成功／錯誤 Schema，資料庫失敗安全回覆 503，首頁加入 Loading／Empty／Error／Retry 狀態 | P0-05 完成；ESLint 降至 4 errors、1 warning，可以進入 P0-06 |
 | 2026-09-22 | 完成 CWA Node.js 擷取、快照驗證、Neon Transaction 原子替換、同步紀錄及成功／失敗復原測試 | P0-04 完成，可以進入 P0-05 |
 | 2026-09-22 | 依 CWA 後台明文規則確認更新授權碼後舊值永久失效，撤回先前 HTTP 狀態碼造成的過度保守判定 | P0-01 完成，不再列為 Live 阻擋項目 |
