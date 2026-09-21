@@ -71,7 +71,7 @@
 | P1-02 | P1 | 加入觀測時間、同步時間與資料新鮮度 | 完成 | API 與 Header 分離兩種時間，120 分鐘 stale 邊界與 876 筆回歸通過 |
 | P1-03 | P1 | 改善地圖效能與大量測站呈現 | 完成 | Canvas 原地更新、桌面／375px E2E、Popup 安全與前後量測通過 |
 | P1-04 | P1 | 完成行動版、無障礙與狀態畫面 | 完成 | 375／768／1440 px、鍵盤、ARIA、狀態畫面及手機表格捲動驗證通過 |
-| P1-05 | P1 | 補齊測試、監控、紀錄與復原程序 | 待辦 | — |
+| P1-05 | P1 | 補齊測試、監控、紀錄與復原程序 | 進行中 | 備份 Commit `edf1711`；6 組核心測試與 Neon 健康查詢通過，完整驗收待續 |
 | P1-06 | P1 | 建立 Staging 並完成端對端驗收 | 待辦 | — |
 | P2-01 | P2 | 歷史資料與趨勢圖表 | 待辦 | 首次上線非必要 |
 | P2-02 | P2 | 雷達、紫外線、風向與進階圖層 | 待辦 | 首次上線非必要 |
@@ -406,7 +406,22 @@ npm run build  → exit code 0
 
 ### P1-05 補齊測試、監控、紀錄與復原程序
 
-**狀態：** `待辦`
+**狀態：** `進行中`
+
+**目前已完成（2026-09-22）**
+
+- 新增 `npm test`，6 組核心測試涵蓋 CWA 缺測值、空回應、低筆數、重複站號、異常座標、過期時間、120 分鐘時效邊界、統計、搜尋、精確縣市篩選、排序與分頁；當次 6／6 通過。
+- 將統計與表格資料處理抽成可測試的 `lib/weather-view.ts`；當次 ESLint 與 TypeScript 檢查通過。
+- 新增 `npm run ops:status`；Development Neon 實測為健康、876 筆、最近同步成功，查詢不輸出憑證。
+- 新增 `OPERATIONS.md`，包含同步錯誤碼、人工觸發、健康查詢及 Neon Point-in-Time Restore 程序。
+- 目前進度已保存於 `codex/p1-05-testing-ops`／`edf1711`，Vercel Preview Build 狀態為 Ready。
+
+**仍待完成**
+
+- P1-05 修改後的最終 `npm test`、ESLint、TypeScript、Production Build 與 `git diff --check`。
+- 受控模擬 CWA 失敗，確認網站繼續提供最近一次有效資料並留下可判讀錯誤碼。
+- 重跑 API 成功、資料庫失敗、過期資料與地圖定位回歸，核對 README／HANDOVER／OPERATIONS 一致性。
+- 全部通過後才能將 P1-05 標示完成；合併至 `main` 前需再次確認，因 `main` Push 會自動部署 Production。
 
 **最低測試範圍**
 
@@ -540,6 +555,7 @@ Live 發布
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
 | 2026-09-22 | 安裝 Vercel GitHub App 並連結 `iloveu-tw/0921_TW_weather_site`；Production Branch 為 `main`，自動建立 Deployment 已啟用 | 後續 `main` Push 將自動部署 Production，其他分支／PR 建立 Preview |
+| 2026-09-22 | 將 P1-05 測試、健康查詢與維運文件備份至 `codex/p1-05-testing-ops`／`edf1711`；Preview Build Ready | P1-05 維持進行中，尚未合併至 `main` |
 | 2026-09-22 | 建立 Vercel 專案並設定 Preview／Production 機密環境變數；首次部署自動成為 Production，基本 Smoke Check 通過 | Live 網站已可存取；P1-05、P1-06 完整驗收及 GitHub 自動部署仍待完成 |
 | 2026-09-22 | 修正 375 px 版面裁切與表格捲動，補齊排序、地圖控制、表單標籤、Focus、ARIA 狀態及 Reduced Motion；完成各狀態受控驗證 | P1-04 完成，可以進入 P1-05 |
 | 2026-09-22 | Marker 改用單一 Canvas、指標原地更新與 LayerGroup；完成桌面／375px 效能、Fly-to／Popup 及 HTML 注入測試 | P1-03 完成，可以進入 P1-04 |
@@ -558,3 +574,24 @@ Live 發布
 | 2026-09-21 | 新 CWA Key 已存入本機 `.env`，單筆唯讀 API 驗證成功；未將實際值寫入追蹤文件 | P0-01 維持進行中，等待舊 Key 停用及歷史清理 |
 | 2026-09-21 | P0-01 目前版本去敏完成；確認 Git 歷史仍含舊值，等待 Key 輪替與歷史清理 | P0-01 改為進行中，尚未進入 P0-02 |
 | 2026-09-21 | 建立 Live 上線前改善與進度追蹤文件，填入唯讀盤點基準、P0／P1／P2 任務及驗收條件 | 建立追蹤基準，尚未修改程式碼 |
+
+## 11. Token Reset 後續作交接
+
+### 安全停點
+
+- 目前工作分支：`codex/p1-05-testing-ops`
+- P1-05 備份基準 Commit：`edf1711`；最新續作狀態以此分支遠端 HEAD 與本節為準。
+- Production Commit：`1dab462`，網址：<https://taiwan-weather-site.vercel.app>
+- P1-05 Preview：<https://taiwan-weather-site-git-codex-p1-05-testing-ops-taiwan-weather1.vercel.app>
+- 使用者已手動確認 Production 網頁正常；基本 Smoke Check 為首頁 200、氣象 API 200／876 筆、未授權更新 401。
+- Vercel 已連結 GitHub Repository `iloveu-tw/0921_TW_weather_site`，Production Branch 為 `main`；Preview／Production 已設定 `DATABASE_URL`、`CWA_API_KEY`、`CRON_SECRET`，文件不保存實際值。
+- Live CWA 排程尚未建立；Neon 目前資料不會因部署本身自動更新。
+
+### 續作順序
+
+1. 確認位於 `codex/p1-05-testing-ops` 且工作樹乾淨，不要先切換或 Push `main`。
+2. 完成 P1-05「仍待完成」的受控失敗與完整回歸驗證。
+3. 驗證全部通過後更新本文件，Commit／Push 同一分支。
+4. 先檢查 Vercel Preview，再由使用者確認是否建立 PR／合併 `main`；合併會觸發 Production 自動部署。
+5. P1-05 完成後再進入 P1-06 Staging、跨瀏覽器、attribution 與 Rollback 演練。
+6. Live 排程頻率與 Vercel Hobby 限制需另行決定，未經確認不要直接建立排程。
