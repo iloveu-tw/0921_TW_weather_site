@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { WeatherObservation } from '@/types/weather';
+import { summarizeWeather } from '@/lib/weather-view';
 import { Thermometer, CloudRain, Droplets, Radio } from 'lucide-react';
 
 interface WeatherStatsProps {
@@ -9,30 +10,13 @@ interface WeatherStatsProps {
 }
 
 export default function WeatherStats({ data }: WeatherStatsProps) {
-  // 計算統計指標
-  const validTemp = data.filter((d) => d.temperature !== null && d.temperature > -50);
-  const validRain = data.filter((d) => d.rainfall !== null && d.rainfall >= 0);
-  const validHumid = data.filter((d) => d.humidity !== null && d.humidity >= 0);
-
-  const maxTempStation = validTemp.reduce(
-    (max, cur) => ((cur.temperature ?? -999) > (max?.temperature ?? -999) ? cur : max),
-    validTemp[0] || null
-  );
-
-  const minTempStation = validTemp.reduce(
-    (min, cur) => ((cur.temperature ?? 999) < (min?.temperature ?? 999) ? cur : min),
-    validTemp[0] || null
-  );
-
-  const maxRainStation = validRain.reduce(
-    (max, cur) => ((cur.rainfall ?? -1) > (max?.rainfall ?? -1) ? cur : max),
-    validRain[0] || null
-  );
-
-  const avgHumidity =
-    validHumid.length > 0
-      ? (validHumid.reduce((acc, c) => acc + (c.humidity ?? 0), 0) / validHumid.length).toFixed(0)
-      : '--';
+  const {
+    maxTempStation,
+    minTempStation,
+    maxRainStation,
+    averageHumidity,
+  } = summarizeWeather(data);
+  const avgHumidity = averageHumidity === null ? '--' : averageHumidity.toFixed(0);
 
   return (
     <div className="stats-grid" id="weather-stats-overview">

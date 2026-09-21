@@ -434,6 +434,8 @@ npm run build  → exit code 0
 
 **狀態：** `待辦`
 
+> 2026-09-22：依使用者指示先略過完整驗證，已將已驗證 Commit `1dab462` 部署至 Vercel Production。首頁 HTTP 200、`/api/weather` HTTP 200／876 筆、未授權 `/api/refresh` HTTP 401；Staging、跨瀏覽器與 Rollback 演練仍未完成，因此本項維持待辦。
+
 **執行步驟**
 
 1. 建立與 Production 相同架構的 Staging 環境。
@@ -537,6 +539,8 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-22 | 安裝 Vercel GitHub App 並連結 `iloveu-tw/0921_TW_weather_site`；Production Branch 為 `main`，自動建立 Deployment 已啟用 | 後續 `main` Push 將自動部署 Production，其他分支／PR 建立 Preview |
+| 2026-09-22 | 建立 Vercel 專案並設定 Preview／Production 機密環境變數；首次部署自動成為 Production，基本 Smoke Check 通過 | Live 網站已可存取；P1-05、P1-06 完整驗收及 GitHub 自動部署仍待完成 |
 | 2026-09-22 | 修正 375 px 版面裁切與表格捲動，補齊排序、地圖控制、表單標籤、Focus、ARIA 狀態及 Reduced Motion；完成各狀態受控驗證 | P1-04 完成，可以進入 P1-05 |
 | 2026-09-22 | Marker 改用單一 Canvas、指標原地更新與 LayerGroup；完成桌面／375px 效能、Fly-to／Popup 及 HTML 注入測試 | P1-03 完成，可以進入 P1-04 |
 | 2026-09-22 | 分離 CWA 觀測時間與 Neon 同步時間，加入 120 分鐘 stale 判定及 Header 最新／過期狀態 | P1-02 完成，可以進入 P1-03 |

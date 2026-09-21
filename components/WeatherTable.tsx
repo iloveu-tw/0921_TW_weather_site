@@ -2,6 +2,11 @@
 
 import React, { useState, useMemo } from 'react';
 import { WeatherObservation } from '@/types/weather';
+import {
+  filterSortAndPaginateWeather,
+  type WeatherSortField,
+  type WeatherSortOrder,
+} from '@/lib/weather-view';
 import { Search, ArrowUpDown, ChevronLeft, ChevronRight, MapPin, Filter } from 'lucide-react';
 
 interface WeatherTableProps {
@@ -10,9 +15,6 @@ interface WeatherTableProps {
   onSelectStation: (station: WeatherObservation) => void;
 }
 
-type SortField = 'station_name' | 'temperature' | 'rainfall' | 'humidity' | 'wind_speed';
-type SortOrder = 'asc' | 'desc';
-
 export default function WeatherTable({
   stations,
   selectedStation,
@@ -20,8 +22,8 @@ export default function WeatherTable({
 }: WeatherTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCounty, setSelectedCounty] = useState('all');
-  const [sortField, setSortField] = useState<SortField>('temperature');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortField, setSortField] = useState<WeatherSortField>('temperature');
+  const [sortOrder, setSortOrder] = useState<WeatherSortOrder>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
@@ -30,54 +32,22 @@ export default function WeatherTable({
     [stations]
   );
 
-  // 篩選測站
-  const filteredStations = useMemo(() => {
-    return stations.filter((station) => {
-      // 關鍵字搜尋 (測站名稱或 ID)
-      const matchesSearch =
-        searchTerm === '' ||
-        station.station_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        station.station_id.toLowerCase().includes(searchTerm.toLowerCase());
-
-      // 使用 CWA 明確縣市欄位篩選，不再從測站名稱推測
-      const matchesCounty =
-        selectedCounty === 'all' ||
-        station.county === selectedCounty;
-
-      return matchesSearch && matchesCounty;
-    });
-  }, [stations, searchTerm, selectedCounty]);
-
-  // 排序
-  const sortedStations = useMemo(() => {
-    return [...filteredStations].sort((a, b) => {
-      const valA = a[sortField];
-      const valB = b[sortField];
-
-      if (valA === null || valA === undefined) return 1;
-      if (valB === null || valB === undefined) return -1;
-
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        return sortOrder === 'asc'
-          ? valA.localeCompare(valB, 'zh-Hant')
-          : valB.localeCompare(valA, 'zh-Hant');
-      }
-
-      return sortOrder === 'asc'
-        ? (valA as number) - (valB as number)
-        : (valB as number) - (valA as number);
-    });
-  }, [filteredStations, sortField, sortOrder]);
-
-  // 分頁計算
-  const totalPages = Math.ceil(sortedStations.length / pageSize) || 1;
-  const paginatedStations = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedStations.slice(start, start + pageSize);
-  }, [sortedStations, currentPage, pageSize]);
+  const { filteredAndSorted: sortedStations, pageItems: paginatedStations, totalPages } =
+    useMemo(
+      () =>
+        filterSortAndPaginateWeather(stations, {
+          searchTerm,
+          county: selectedCounty,
+          sortField,
+          sortOrder,
+          page: currentPage,
+          pageSize,
+        }),
+      [stations, searchTerm, selectedCounty, sortField, sortOrder, currentPage]
+    );
 
   // 切換排序
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: WeatherSortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -88,7 +58,7 @@ export default function WeatherTable({
   };
 
   const getAriaSort = (
-    field: SortField
+    field: WeatherSortField
   ): React.AriaAttributes['aria-sort'] => {
     if (sortField !== field) return 'none';
     return sortOrder === 'asc' ? 'ascending' : 'descending';

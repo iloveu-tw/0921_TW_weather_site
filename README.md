@@ -17,7 +17,7 @@
   - 支援氣溫、雨量、濕度升降冪排序。
   - 點擊表格內任一測站定位圖示，地圖將平滑飛至該測站並自動展開空間彈窗。
 - **全台氣象概況統計卡**：即時計算並展示在線測站總數、全台最高溫測站、全台最低溫測站、即時最大累積降雨測站與平均相對濕度。
-- **一鍵式資料即時同步**：前端介面可一鍵觸發後端 Python 擷取管線，重新向 CWA Open Data API 拉取最新觀測資料並更新至本地 SQLite 資料庫。
+- **受保護的資料同步**：Server-to-Server `/api/refresh` 以 `CRON_SECRET`、Neon 租約鎖、資料驗證與 PostgreSQL Transaction 安全更新最新快照；前端不公開同步控制。
 
 ---
 
@@ -29,7 +29,7 @@
        │   (O-A0001-001 JSON)   │
        └───────────┬────────────┘
                    │
-                   ▼ (scripts/fetch_weather.py)
+                   ▼ (受保護的 /api/refresh)
        ┌────────────────────────┐
        │  Data Cleaning / ETL   │
        │   資料清洗與正規化處理   │
@@ -37,9 +37,8 @@
                    │
                    ▼
        ┌────────────────────────┐
-       │     Local Database     │
-       │     SQLite 關聯儲存    │
-       │   (data/weather.db)    │
+       │  Neon PostgreSQL       │
+       │  原子快照與同步紀錄     │
        └───────────┬────────────┘
                    │
                    ▼ (Next.js Route Handlers: /api/weather)
@@ -63,8 +62,8 @@
 - **前端框架**：Next.js 16 (Turbopack, App Router) + TypeScript + React 19
 - **GIS 地圖引擎**：Leaflet.js + CartoDB Dark Tiles + GeoJSON
 - **使用者介面**：原生 Vanilla CSS（現代深色模式、玻璃擬態 Glassmorphism、響應式排版、Google Fonts: Inter & Outfit）
-- **後端資料庫**：SQLite (`data/weather.db`) + `better-sqlite3`
-- **資料擷取管線**：Python 3 (`scripts/fetch_weather.py`) + `truststore` SSL 憑證保護
+- **後端資料庫**：Neon Serverless PostgreSQL (`@neondatabase/serverless`)
+- **資料擷取管線**：Next.js Route Handler + CWA JSON 正規化、資料驗證與原子 Transaction
 - **版本控制與部署**：Git / GitHub / Vercel
 
 ---
@@ -72,9 +71,9 @@
 ## 🚀 本地快速啟動
 
 ### 1. 環境需求
-- Node.js 18+ (建議 v20 或 v24)
-- Python 3.10+
+- Node.js 24（Production Build 與原生 TypeScript 測試已驗證）
 - CWA Open Data API Key
+- Neon PostgreSQL 連線字串與至少 32 字元的排程 Secret
 
 ### 2. 安裝依賴套件
 ```bash
@@ -82,21 +81,27 @@ npm install
 ```
 
 ### 3. 配置環境變數
-在專案根目錄建立 `.env` 檔案並填入您的 CWA API 金鑰：
+在專案根目錄建立 `.env` 檔案：
 ```env
 CWA_API_KEY=your_cwa_api_key_here
+DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+CRON_SECRET=replace_with_a_random_secret_at_least_32_characters
 ```
 
-### 4. 擷取初始氣象資料至 SQLite
-```bash
-python3 scripts/fetch_weather.py
-```
-
-### 5. 啟動 Web GIS 伺服器
+### 4. 啟動 Web GIS 伺服器
 ```bash
 npm run dev
 ```
 瀏覽器開啟 [http://localhost:3000](http://localhost:3000) 即可開始使用！
+
+### 5. 測試與維運狀態
+
+```bash
+npm test
+npm run ops:status
+```
+
+同步故障判讀與 Neon 還原程序請見 [`OPERATIONS.md`](./OPERATIONS.md)。
 
 ---
 

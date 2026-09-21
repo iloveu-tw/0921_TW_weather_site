@@ -97,13 +97,18 @@ taiwan-weather-site/
 │   ├── database.ts            # Neon PostgreSQL 查詢、Transaction 與同步紀錄
 │   ├── weather-sync.ts        # CWA 擷取與同步流程
 │   └── weather-validation.ts  # 快照欄位、筆數、唯一性與合理範圍驗證
+│   └── weather-view.ts        # 統計、搜尋、排序與分頁純函式
 │
 ├── public/
 │   └── geo/
 │       └── taiwan-counties.geojson # 台灣 22 縣市行政區邊界向量圖資
 │
 ├── scripts/
-│   └── fetch_weather.py       # Python 3 氣象資料擷取、ETL 清洗與 SQLite 入庫主程式
+│   ├── check_sync_status.mjs  # Neon 快照與最近同步健康檢查
+│   └── fetch_weather.py       # 舊版 SQLite 擷取工具，僅供原始資料追溯
+│
+├── tests/
+│   └── weather-core.test.mjs  # 驗證、時效、統計、搜尋、排序與分頁測試
 │
 └── types/
     └── weather.ts             # 氣象資料結構 TypeScript 型別定義
@@ -114,18 +119,20 @@ taiwan-weather-site/
 ## 4. 本地開發與快速啟動指引
 
 ### 4.1 環境依賴
-* **Node.js**：v18 以上（目前環境為 Node.js v24.21.0）
-* **Python**：v3.10 以上（目前環境為 Python 3.13）
+* **Node.js**：v24（目前環境為 Node.js v24.21.0）
 * **中央氣象署 API 金鑰**：需已取得 CWA API Key
+* **Neon PostgreSQL**：需設定 `DATABASE_URL`
+* **同步驗證**：需設定至少 32 字元的 `CRON_SECRET`
 
 ### 4.2 本地啟動三步驟
 1. **安裝前端依賴**：
    ```bash
    npm install
    ```
-2. **手動更新/抓取最新氣象資料**（若尚未初始化資料庫）：
+2. **執行測試與 Neon 健康檢查**：
    ```bash
-   python3 scripts/fetch_weather.py
+   npm test
+   npm run ops:status
    ```
 3. **啟動 Web GIS 伺服器**：
    ```bash
@@ -143,8 +150,9 @@ taiwan-weather-site/
 2. **React 19 / 18 StrictMode 下 Leaflet 重複初始化**：
    * **問題**：開發模式下 `useEffect` 會執行兩次，非同步 `import('leaflet')` 會導致 `Error: Map container is already initialized`。
    * **解法**：在 `components/WeatherMap.tsx` 內加入 `isCancelled` 旗標與 DOM 節點 `_leaflet_id` 防禦判斷，確保容器生命週期唯一。
-3. **Next.js 16 Native Addon 設定**：
-   * `better-sqlite3` 屬 Node.js 原生 C++ 模組，必須在 `next.config.ts` 宣告 `serverExternalPackages: ['better-sqlite3']` 方可正常編譯與執行。
+3. **同步與復原**：
+   * 前端沒有手動同步按鈕；`/api/refresh` 僅接受帶 `CRON_SECRET` 的 Server-to-Server 請求。
+   * 同步失敗會保留上一份有效資料；故障判讀與 Neon Point-in-Time Restore 步驟見 `OPERATIONS.md`。
 4. **機敏資訊保護**：
    * 本機真實金鑰存於 `.env`，已由 `.gitignore` 隔離；推送到 GitHub 的僅有範本檔 `.env.example`。
 
