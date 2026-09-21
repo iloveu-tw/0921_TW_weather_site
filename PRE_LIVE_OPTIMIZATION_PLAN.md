@@ -69,7 +69,7 @@
 | P0-06 | P0 | 排除 ESLint／TypeScript／Build 問題 | 完成 | ESLint 0、TypeScript 與 Production Build 通過，首頁與 API 回歸正常 |
 | P1-01 | P1 | 建立正確的縣市資料欄位與篩選 | 完成 | 876 筆 county／town 零缺失、22 縣市與離島抽查、前端精確篩選通過 |
 | P1-02 | P1 | 加入觀測時間、同步時間與資料新鮮度 | 完成 | API 與 Header 分離兩種時間，120 分鐘 stale 邊界與 876 筆回歸通過 |
-| P1-03 | P1 | 改善地圖效能與大量測站呈現 | 待辦 | — |
+| P1-03 | P1 | 改善地圖效能與大量測站呈現 | 完成 | Canvas 原地更新、桌面／375px E2E、Popup 安全與前後量測通過 |
 | P1-04 | P1 | 完成行動版、無障礙與狀態畫面 | 待辦 | — |
 | P1-05 | P1 | 補齊測試、監控、紀錄與復原程序 | 待辦 | — |
 | P1-06 | P1 | 建立 Staging 並完成端對端驗收 | 待辦 | — |
@@ -348,7 +348,7 @@ npm run build  → exit code 0
 
 ### P1-03 改善地圖效能與大量測站呈現
 
-**狀態：** `待辦`
+**狀態：** `完成`
 
 **執行步驟**
 
@@ -364,7 +364,15 @@ npm run build  → exit code 0
 - Marker、表格選取與 Popup 維持同步。
 - 效能優化前後具備可比較的量測結果。
 
-**完成日期／驗證證據：** —
+**完成日期／驗證證據：** 2026-09-22
+
+- 876 個 CircleMarker 共用單一 Leaflet Canvas Renderer；氣溫／雨量切換改為 `setStyle` 原地更新，不再刪除、重建及重新綁定全部 Marker。
+- 測站 Marker 改由獨立 LayerGroup 管理，顯示／隱藏只增減整層；固定縣市 GeoJSON 使用瀏覽器快取，`/api/weather` 使用 60 秒 CDN 快取及 300 秒 stale-while-revalidate。
+- 使用相同 876 筆資料的控制量測：舊式 SVG 重建切換的 JavaScript 操作平均 5.1 ms，新式 Canvas 原地更新平均 0.8 ms，降低約 84%；初始建立操作由 7.1 ms 降至 5.7 ms。
+- Production E2E：桌面 1440×1000 初始可操作約 2.50 秒、切換平均 77.4 ms；375×812 行動視窗初始可操作約 0.86 秒、切換平均 82.8 ms；最大切換約 150 ms，兩者皆無 Page Error。
+- 桌面與行動視窗皆維持單一 Canvas，表格定位、Fly-to 與 Popup 顯示正常。
+- CWA 測站文字已先做 HTML escaping；惡意 HTML 探針測試為 0 個注入元素、0 個 Dialog，Popup 僅顯示轉義後文字。
+- 全專案 Lint、TypeScript 與 Production Build 通過。
 
 ### P1-04 完成行動版、無障礙與狀態畫面
 
@@ -520,6 +528,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-22 | Marker 改用單一 Canvas、指標原地更新與 LayerGroup；完成桌面／375px 效能、Fly-to／Popup 及 HTML 注入測試 | P1-03 完成，可以進入 P1-04 |
 | 2026-09-22 | 分離 CWA 觀測時間與 Neon 同步時間，加入 120 分鐘 stale 判定及 Header 最新／過期狀態 | P1-02 完成，可以進入 P1-03 |
 | 2026-09-22 | 完成 county／town Schema、CWA 解析、876 筆原子同步、NOT NULL、22 縣市與離島回歸，前端改為精確欄位篩選 | P1-01 完成，可以進入 P1-02 |
 | 2026-09-22 | P1-01 完成 CWA 縣市／鄉鎮完整率與離島筆數唯讀盤點；尚未變更資料模型 | 依使用者指示暫停，等待「繼續」後由安全停點恢復 |

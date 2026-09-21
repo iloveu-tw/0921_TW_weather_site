@@ -14,6 +14,39 @@ interface WeatherMapProps {
 type BaseMapType = 'esriDark' | 'osm' | 'satellite';
 type LeafletContainer = HTMLDivElement & { _leaflet_id?: number };
 
+function getTempColor(temp: number | null): string {
+  if (temp === null) return '#64748b';
+  if (temp >= 35) return '#ef4444';
+  if (temp >= 30) return '#f97316';
+  if (temp >= 25) return '#eab308';
+  if (temp >= 20) return '#10b981';
+  if (temp >= 15) return '#06b6d4';
+  return '#3b82f6';
+}
+
+function getRainColor(rain: number | null): string {
+  if (rain === null || rain < 0) return '#64748b';
+  if (rain === 0) return '#334155';
+  if (rain < 2) return '#38bdf8';
+  if (rain < 10) return '#0284c7';
+  if (rain < 30) return '#2563eb';
+  if (rain < 50) return '#f59e0b';
+  return '#dc2626';
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => {
+    const entities: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;',
+    };
+    return entities[character];
+  });
+}
+
 export default function WeatherMap({
   stations,
   selectedStation,
@@ -22,36 +55,17 @@ export default function WeatherMap({
   const mapContainerRef = useRef<LeafletContainer>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const baseTileGroupRef = useRef<L.LayerGroup | null>(null);
+  const stationLayerRef = useRef<L.LayerGroup | null>(null);
+  const markerRendererRef = useRef<L.Canvas | null>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const countyLayerRef = useRef<L.GeoJSON | null>(null);
+  const showCountiesRef = useRef<boolean>(true);
 
   const [baseMap, setBaseMap] = useState<BaseMapType>('esriDark');
   const [metricMode, setMetricMode] = useState<'temp' | 'rain'>('temp');
   const [showCounties, setShowCounties] = useState<boolean>(true);
   const [showStations, setShowStations] = useState<boolean>(true);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
-
-  // 取得氣溫對應顏色
-  const getTempColor = (temp: number | null): string => {
-    if (temp === null) return '#64748b'; // 灰色缺測
-    if (temp >= 35) return '#ef4444';    // 極高溫 (深紅)
-    if (temp >= 30) return '#f97316';    // 高溫 (橘紅)
-    if (temp >= 25) return '#eab308';    // 溫暖 (金黃)
-    if (temp >= 20) return '#10b981';    // 舒適 (翠綠)
-    if (temp >= 15) return '#06b6d4';    // 涼爽 (青藍)
-    return '#3b82f6';                    // 寒冷 (湛藍)
-  };
-
-  // 取得雨量對應顏色
-  const getRainColor = (rain: number | null): string => {
-    if (rain === null || rain < 0) return '#64748b';
-    if (rain === 0) return '#334155';     // 無雨
-    if (rain < 2) return '#38bdf8';       // 微雨
-    if (rain < 10) return '#0284c7';      // 小雨
-    if (rain < 30) return '#2563eb';      // 中雨
-    if (rain < 50) return '#f59e0b';      // 大雨
-    return '#dc2626';                     // 豪大雨 (紅紫)
-  };
 
   // 1. 初始化地圖
   useEffect(() => {
@@ -60,6 +74,7 @@ export default function WeatherMap({
     if (mapContainerRef.current._leaflet_id) return;
 
     let isCancelled = false;
+    const markers = markersRef.current;
 
     // 動態載入 Leaflet
     import('leaflet').then((L) => {
@@ -81,13 +96,18 @@ export default function WeatherMap({
       // 建立底圖圖層群組
       const baseTileGroup = L.layerGroup().addTo(map);
       baseTileGroupRef.current = baseTileGroup;
+      stationLayerRef.current = L.layerGroup().addTo(map);
+      markerRendererRef.current = L.canvas({ padding: 0.5 });
 
       mapInstanceRef.current = map;
       setMapLoaded(true);
 
       // 載入台灣縣市邊界 GeoJSON
-      fetch('/geo/taiwan-counties.geojson')
-        .then((res) => res.json())
+      fetch('/geo/taiwan-counties.geojson', { cache: 'force-cache' })
+        .then((res) => {
+          if (!res.ok) throw new Error(`GeoJSON HTTP ${res.status}`);
+          return res.json();
+        })
         .then((geoData) => {
           if (isCancelled || !mapInstanceRef.current) return;
           const countyLayer = L.geoJSON(geoData, {
@@ -123,7 +143,9 @@ export default function WeatherMap({
                 },
               });
             },
-          }).addTo(map);
+          });
+
+          if (showCountiesRef.current) countyLayer.addTo(map);
 
           countyLayerRef.current = countyLayer;
         })
@@ -135,6 +157,11 @@ export default function WeatherMap({
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        baseTileGroupRef.current = null;
+        stationLayerRef.current = null;
+        markerRendererRef.current = null;
+        markers.clear();
+        countyLayerRef.current = null;
       }
     };
   }, []);
@@ -199,6 +226,7 @@ export default function WeatherMap({
 
   // 3. 切換縣市邊界圖層顯示
   useEffect(() => {
+    showCountiesRef.current = showCounties;
     if (!mapInstanceRef.current || !countyLayerRef.current) return;
     if (showCounties) {
       if (!mapInstanceRef.current.hasLayer(countyLayerRef.current)) {
@@ -211,26 +239,26 @@ export default function WeatherMap({
     }
   }, [showCounties]);
 
-  // 4. 繪製氣象測站 Marker
+  // 4. 僅在資料更新時建立 Marker；指標切換只更新 Canvas 樣式。
   useEffect(() => {
-    if (!mapLoaded || !mapInstanceRef.current) return;
+    if (
+      !mapLoaded ||
+      !stationLayerRef.current ||
+      !markerRendererRef.current
+    ) return;
 
     import('leaflet').then((L) => {
-      const map = mapInstanceRef.current!;
+      const stationLayer = stationLayerRef.current;
+      const renderer = markerRendererRef.current;
+      if (!stationLayer || !renderer) return;
 
-      // 清除舊 Markers
-      markersRef.current.forEach((marker) => marker.remove());
+      stationLayer.clearLayers();
       markersRef.current.clear();
-
-      if (!showStations) return;
 
       stations.forEach((station) => {
         if (!station.latitude || !station.longitude) return;
 
-        const color =
-          metricMode === 'temp'
-            ? getTempColor(station.temperature)
-            : getRainColor(station.rainfall);
+        const color = getTempColor(station.temperature);
 
         const tempText =
           station.temperature !== null
@@ -246,6 +274,7 @@ export default function WeatherMap({
             : '--';
 
         const marker = L.circleMarker([station.latitude, station.longitude], {
+          renderer,
           radius: 7,
           fillColor: color,
           color: '#ffffff',
@@ -259,8 +288,8 @@ export default function WeatherMap({
           <div class="custom-popup-card">
             <div class="popup-header">
               <div class="popup-title-group">
-                <span class="popup-station-badge">${station.station_id}</span>
-                <h4 class="popup-station-name">${station.station_name}</h4>
+                <span class="popup-station-badge">${escapeHtml(station.station_id)}</span>
+                <h4 class="popup-station-name">${escapeHtml(station.station_name)}</h4>
               </div>
               <span class="popup-temp-badge" style="background: ${color}25; color: ${color}; border-color: ${color}50;">
                 ${tempText}
@@ -288,7 +317,7 @@ export default function WeatherMap({
 
             <div class="popup-footer">
               <span>座標: ${station.latitude.toFixed(2)}°N, ${station.longitude.toFixed(2)}°E</span>
-              <span>${station.observation_time ? station.observation_time.replace('T', ' ').substring(0, 19) : ''}</span>
+              <span>${escapeHtml(station.observation_time ? station.observation_time.replace('T', ' ').substring(0, 19) : '')}</span>
             </div>
           </div>
         `;
@@ -303,11 +332,41 @@ export default function WeatherMap({
           onSelectStation(station);
         });
 
-        marker.addTo(map);
+        marker.addTo(stationLayer);
         markersRef.current.set(station.station_id, marker);
       });
     });
-  }, [stations, metricMode, showStations, mapLoaded, onSelectStation]);
+  }, [stations, mapLoaded, onSelectStation]);
+
+  useEffect(() => {
+    const stationById = new Map(
+      stations.map((station) => [station.station_id, station])
+    );
+
+    markersRef.current.forEach((marker, stationId) => {
+      const station = stationById.get(stationId);
+      if (!station) return;
+
+      marker.setStyle({
+        fillColor:
+          metricMode === 'temp'
+            ? getTempColor(station.temperature)
+            : getRainColor(station.rainfall),
+      });
+    });
+  }, [stations, metricMode]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const stationLayer = stationLayerRef.current;
+    if (!map || !stationLayer) return;
+
+    if (showStations && !map.hasLayer(stationLayer)) {
+      stationLayer.addTo(map);
+    } else if (!showStations && map.hasLayer(stationLayer)) {
+      map.removeLayer(stationLayer);
+    }
+  }, [showStations, mapLoaded]);
 
   // 5. 當選中測站時平移並彈出 Popup
   useEffect(() => {

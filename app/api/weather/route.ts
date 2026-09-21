@@ -23,15 +23,22 @@ export async function GET() {
         : latest;
     }, null);
 
-    return NextResponse.json({
-      success: true,
-      count: data.length,
-      observation_time: observationTime,
-      synced_at: syncedAt,
-      is_stale: isWeatherObservationStale(observationTime),
-      stale_after_minutes: WEATHER_STALE_AFTER_MINUTES,
-      data,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        count: data.length,
+        observation_time: observationTime,
+        synced_at: syncedAt,
+        is_stale: isWeatherObservationStale(observationTime),
+        stale_after_minutes: WEATHER_STALE_AFTER_MINUTES,
+        data,
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    );
   } catch (error) {
     console.error('Weather database query failed', {
       error: error instanceof Error ? error.message : 'unknown',
