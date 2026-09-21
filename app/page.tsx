@@ -141,7 +141,7 @@ export default function HomePage() {
       {/* 底部頁尾 */}
       <footer className="app-footer">
         <p>
-          AIoT DIC-2 專案 — CWA Weather GIS ｜ 資料來源：交通部中央氣象署 (CWA) Open Data ｜ 支援本地 SQLite 與 Vercel 雲端架構
+          AIoT DIC-2 專案 — CWA Weather GIS ｜ 資料來源：交通部中央氣象署 (CWA) Open Data ｜ Neon PostgreSQL 雲端資料架構
         </p>
       </footer>
     </div>

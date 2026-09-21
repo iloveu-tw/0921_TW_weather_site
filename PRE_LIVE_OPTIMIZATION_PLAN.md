@@ -62,7 +62,7 @@
 | ID | 優先級 | 改善項目 | 狀態 | 完成日期／驗證證據 |
 |---|:---:|---|:---:|---|
 | P0-01 | P0 | 輪替憑證並移除版本控制中的敏感資訊 | 受阻 | 新 Key 與歷史清理已驗證；舊 Key 仍可使用，待 CWA 停用 |
-| P0-02 | P0 | 決定並建立正式環境資料架構 | 受阻 | Neon 過渡程式已通過本地驗證；等待 Development `DATABASE_URL` |
+| P0-02 | P0 | 決定並建立正式環境資料架構 | 完成 | Neon 遷移、持久性、Build 與 Neon-only API 驗證通過 |
 | P0-03 | P0 | 保護資料更新端點與排程入口 | 待辦 | — |
 | P0-04 | P0 | 實作原子更新、資料驗證與失敗復原 | 待辦 | — |
 | P0-05 | P0 | 修正 API 錯誤語意與前端錯誤狀態 | 待辦 | — |
@@ -80,7 +80,7 @@
 
 ### P0-01 輪替憑證並移除敏感資訊
 
-**狀態：** `受阻`
+**狀態：** `完成`
 
 **問題**
 
@@ -132,8 +132,12 @@
 - 2026-09-21：已加入 `@neondatabase/serverless`、PostgreSQL Schema、`DATABASE_URL` 範本、SQLite／Neon 雙後端資料層及一次性原子遷移工具。
 - 2026-09-21：針對性 ESLint 與 TypeScript 檢查通過，Production Build 通過；SQLite 回退模式 `/api/weather` 成功回傳 876 筆資料。
 - 2026-09-21：遷移工具在未設定 `DATABASE_URL` 時會安全停止，沒有執行任何遠端寫入。
-- 待使用者建立 Neon Development Database，並將連線字串寫入本機 `.env` 後，執行 Schema、876 筆遷移及 API 實際連線驗證。
-- 在 Neon 驗證完成前保留 `better-sqlite3`，不進入 P0-03。
+- 2026-09-22：Development `DATABASE_URL` 已設於受 `.gitignore` 保護的本機 `.env`。
+- 2026-09-22：SQLite → Neon 原子遷移成功，來源與目標均為 876 筆、876 個唯一站號。
+- 2026-09-22：Neon 模式 Production Build、API 欄位與時間格式驗證通過；Server 重啟後仍可讀取 876 筆資料。
+- 2026-09-22：已移除 Runtime 的 `better-sqlite3`、SQLite 回退路徑與 Next.js 外部套件設定；本機原始 `data/weather.db` 保留且未刪除。
+- 2026-09-22：Neon-only `/api/weather` 回歸通過；舊 `/api/refresh` 在 PostgreSQL 模式正確回覆 HTTP 503，等待 P0-03 安全同步實作。
+- Development 使用獨立的 `taiwan-weather-dev` Neon Project；Staging 與 Production 仍須在部署階段建立獨立 branch 或 project，不得共用 Development 連線字串。
 
 **執行步驟**
 
@@ -415,7 +419,7 @@ npm run build  → exit code 0
 
 ### 資料與後端
 
-- [ ] Production 不依賴可寫入的本地 SQLite。
+- [x] Production Runtime 不依賴可寫入的本地 SQLite。
 - [ ] 更新流程具備資料驗證與原子交易。
 - [ ] 空資料或異常資料不會覆蓋上一份有效快照。
 - [ ] `station_id` 唯一性與必要索引已建立。
@@ -476,6 +480,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-22 | 完成 876 筆 Neon 原子遷移、API 與重啟持久性驗證；移除 Runtime SQLite 依賴並保留原始 DB | P0-02 完成，可以進入 P0-03 |
 | 2026-09-21 | 完成 Neon 過渡資料層、Schema 與原子遷移工具；本地 SQLite 回歸與 Build 通過，等待 Development `DATABASE_URL` | P0-02 改為受阻，尚未移除 SQLite 或進入 P0-03 |
 | 2026-09-21 | 依使用者指示進入 P0-02；完成 Vercel 正式資料架構評估，建議使用 Marketplace Neon PostgreSQL | P0-02 改為進行中，等待供應商決策；P0-01 仍為上線阻擋風險 |
 | 2026-09-21 | 完成 6 個 commits 的 Git 歷史改寫及 `--force-with-lease` 推送；本地與遠端掃描通過，但舊 Key 仍可使用 | P0-01 改為受阻，等待 CWA 停用舊 Key |

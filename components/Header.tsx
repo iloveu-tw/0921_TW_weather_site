@@ -54,7 +54,7 @@ export default function Header({
           <div className="meta-item">
             <Database className="meta-icon" />
             <span className="meta-label">資料來源:</span>
-            <span className="meta-value">SQLite (weather.db)</span>
+            <span className="meta-value">Neon PostgreSQL</span>
           </div>
           <div className="meta-item">
             <span className="meta-label">最後觀測時間:</span>

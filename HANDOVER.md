@@ -6,6 +6,8 @@
 > **目前分支**：`main`  
 > **本地開發伺服器**：`http://localhost:3000`  
 
+> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。安全的 CWA 雲端同步流程將於 P0-03 實作。
+
 ---
 
 ## 1. 專案定位與架構概述
