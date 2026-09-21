@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { WeatherObservation } from '@/types/weather';
-import { Layers, Eye, Compass, CloudRain, Sun } from 'lucide-react';
+import { Layers, Eye, Compass, CloudRain, Sun, Moon, Map as MapIcon, Globe } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 interface WeatherMapProps {
@@ -11,6 +11,8 @@ interface WeatherMapProps {
   onSelectStation: (station: WeatherObservation) => void;
 }
 
+type BaseMapType = 'esriDark' | 'osm' | 'satellite';
+
 export default function WeatherMap({
   stations,
   selectedStation,
@@ -18,9 +20,11 @@ export default function WeatherMap({
 }: WeatherMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const baseTileGroupRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const countyLayerRef = useRef<L.GeoJSON | null>(null);
 
+  const [baseMap, setBaseMap] = useState<BaseMapType>('esriDark');
   const [metricMode, setMetricMode] = useState<'temp' | 'rain'>('temp');
   const [showCounties, setShowCounties] = useState<boolean>(true);
   const [showStations, setShowStations] = useState<boolean>(true);
@@ -73,16 +77,9 @@ export default function WeatherMap({
       // 新增縮放控制項到右下角
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // 高質感 CartoDB 深色底圖
-      L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        {
-          attribution:
-            '&copy; <a href="https://carto.com/" target="_blank">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
-          subdomains: 'abcd',
-          maxZoom: 19,
-        }
-      ).addTo(map);
+      // 建立底圖圖層群組
+      const baseTileGroup = L.layerGroup().addTo(map);
+      baseTileGroupRef.current = baseTileGroup;
 
       mapInstanceRef.current = map;
       setMapLoaded(true);
@@ -96,7 +93,7 @@ export default function WeatherMap({
             style: {
               color: '#38bdf8',
               weight: 1.2,
-              opacity: 0.5,
+              opacity: 0.6,
               fillColor: '#0284c7',
               fillOpacity: 0.04,
               dashArray: '3, 4',
@@ -114,10 +111,10 @@ export default function WeatherMap({
                 mouseover: (e) => {
                   const target = e.target;
                   target.setStyle({
-                    weight: 2.2,
+                    weight: 2.4,
                     color: '#67e8f9',
-                    opacity: 0.9,
-                    fillOpacity: 0.15,
+                    opacity: 0.95,
+                    fillOpacity: 0.18,
                   });
                 },
                 mouseout: (e) => {
@@ -141,7 +138,65 @@ export default function WeatherMap({
     };
   }, []);
 
-  // 2. 切換縣市邊界圖層顯示
+  // 2. 切換免 API Key 底圖 (Esri Dark Gray / OSM / Esri Satellite)
+  useEffect(() => {
+    if (!mapLoaded || !mapInstanceRef.current || !baseTileGroupRef.current) return;
+
+    import('leaflet').then((L) => {
+      const group = baseTileGroupRef.current!;
+      group.clearLayers();
+
+      if (baseMap === 'esriDark') {
+        // 1. Esri World Dark Gray Canvas (完全免 Key、零浮水印)
+        const darkBase = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+          {
+            attribution:
+              '&copy; <a href="https://www.esri.com/" target="_blank">Esri</a>, HERE, Garmin, &copy; OpenStreetMap',
+            maxZoom: 16,
+          }
+        );
+        const darkRef = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+          {
+            maxZoom: 16,
+            opacity: 0.8,
+          }
+        );
+        group.addLayer(darkBase);
+        group.addLayer(darkRef);
+      } else if (baseMap === 'osm') {
+        // 2. OpenStreetMap 標準開放街道圖 (完全免 Key)
+        const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+        });
+        group.addLayer(osm);
+      } else if (baseMap === 'satellite') {
+        // 3. Esri World Imagery 衛星空照圖 (完全免 Key)
+        const sat = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          {
+            attribution:
+              '&copy; <a href="https://www.esri.com/" target="_blank">Esri</a>, Maxar, Earthstar Geographics',
+            maxZoom: 19,
+          }
+        );
+        const boundaries = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+          {
+            maxZoom: 19,
+            opacity: 0.7,
+          }
+        );
+        group.addLayer(sat);
+        group.addLayer(boundaries);
+      }
+    });
+  }, [baseMap, mapLoaded]);
+
+  // 3. 切換縣市邊界圖層顯示
   useEffect(() => {
     if (!mapInstanceRef.current || !countyLayerRef.current) return;
     if (showCounties) {
@@ -155,7 +210,7 @@ export default function WeatherMap({
     }
   }, [showCounties]);
 
-  // 3. 繪製氣象測站 Marker
+  // 4. 繪製氣象測站 Marker
   useEffect(() => {
     if (!mapLoaded || !mapInstanceRef.current) return;
 
@@ -206,7 +261,7 @@ export default function WeatherMap({
                 <span class="popup-station-badge">${station.station_id}</span>
                 <h4 class="popup-station-name">${station.station_name}</h4>
               </div>
-              <span class="popup-temp-badge" style="background: ${color}20; color: ${color}; border-color: ${color}50;">
+              <span class="popup-temp-badge" style="background: ${color}25; color: ${color}; border-color: ${color}50;">
                 ${tempText}
               </span>
             </div>
@@ -253,7 +308,7 @@ export default function WeatherMap({
     });
   }, [stations, metricMode, showStations, mapLoaded, onSelectStation]);
 
-  // 4. 當選中測站時平移並彈出 Popup
+  // 5. 當選中測站時平移並彈出 Popup
   useEffect(() => {
     if (!selectedStation || !mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
@@ -284,6 +339,37 @@ export default function WeatherMap({
       {/* 地圖上層浮動控制欄 (Glassmorphism Toolbar) */}
       <div className="map-toolbar">
         <div className="toolbar-group">
+          {/* 底圖圖資切換 */}
+          <div className="toolbar-metric-switch">
+            <button
+              id="btn-basemap-dark"
+              className={`metric-btn ${baseMap === 'esriDark' ? 'active' : ''}`}
+              onClick={() => setBaseMap('esriDark')}
+              title="切換為 Esri 深色極簡畫布（免 Key、無浮水印）"
+            >
+              <Moon className="btn-icon" />
+              <span>深色畫布</span>
+            </button>
+            <button
+              id="btn-basemap-osm"
+              className={`metric-btn ${baseMap === 'osm' ? 'active' : ''}`}
+              onClick={() => setBaseMap('osm')}
+              title="切換為 OpenStreetMap 標準街道圖（免 Key）"
+            >
+              <MapIcon className="btn-icon" />
+              <span>標準地圖</span>
+            </button>
+            <button
+              id="btn-basemap-satellite"
+              className={`metric-btn ${baseMap === 'satellite' ? 'active' : ''}`}
+              onClick={() => setBaseMap('satellite')}
+              title="切換為 Esri 衛星空照圖（免 Key）"
+            >
+              <Globe className="btn-icon" />
+              <span>衛星影像</span>
+            </button>
+          </div>
+
           {/* 指標切換 */}
           <div className="toolbar-metric-switch">
             <button
