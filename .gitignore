@@ -22,3 +22,9 @@ venv/
 node_modules/
 dist/
 build/
+
+# Local Database
+*.db
+*.sqlite
+*.sqlite3
+data/
