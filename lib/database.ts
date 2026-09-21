@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { WeatherObservation } from '@/types/weather';
+import type { WeatherObservationInput } from '@/lib/weather-validation';
 
 /**
  * 取得 Neon PostgreSQL 連線字串
@@ -46,6 +47,90 @@ async function getPostgresObservations(): Promise<WeatherObservation[]> {
  */
 export async function getAllObservations(): Promise<WeatherObservation[]> {
   return getPostgresObservations();
+}
+
+export async function getWeatherObservationCount(): Promise<number> {
+  const sql = neon(getDatabaseUrl());
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM weather_observations`;
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function createWeatherSyncRun(runId: string): Promise<void> {
+  const sql = neon(getDatabaseUrl());
+  await sql`
+    INSERT INTO weather_sync_runs (run_id, started_at, status)
+    VALUES (${runId}, NOW(), 'running')
+  `;
+}
+
+export async function markWeatherSyncFailure(
+  runId: string,
+  errorCode: string
+): Promise<void> {
+  const sql = neon(getDatabaseUrl());
+  await sql`
+    UPDATE weather_sync_runs
+    SET completed_at = NOW(), status = 'failed', error_code = ${errorCode}
+    WHERE run_id = ${runId}
+  `;
+}
+
+/**
+ * 在同一個 PostgreSQL Transaction 中完整替換快照並記錄成功結果。
+ */
+export async function replaceWeatherObservations(
+  records: WeatherObservationInput[],
+  runId: string
+): Promise<void> {
+  const sql = neon(getDatabaseUrl());
+  const payload = JSON.stringify(records);
+
+  await sql.transaction([
+    sql`DELETE FROM weather_observations`,
+    sql`
+      INSERT INTO weather_observations (
+        station_id,
+        station_name,
+        latitude,
+        longitude,
+        temperature,
+        humidity,
+        rainfall,
+        wind_speed,
+        observation_time
+      )
+      SELECT
+        station_id,
+        station_name,
+        latitude,
+        longitude,
+        temperature,
+        humidity,
+        rainfall,
+        wind_speed,
+        observation_time
+      FROM jsonb_to_recordset(${payload}::jsonb) AS item(
+        station_id TEXT,
+        station_name TEXT,
+        latitude DOUBLE PRECISION,
+        longitude DOUBLE PRECISION,
+        temperature DOUBLE PRECISION,
+        humidity DOUBLE PRECISION,
+        rainfall DOUBLE PRECISION,
+        wind_speed DOUBLE PRECISION,
+        observation_time TIMESTAMPTZ
+      )
+    `,
+    sql`
+      UPDATE weather_sync_runs
+      SET
+        completed_at = NOW(),
+        status = 'success',
+        record_count = ${records.length},
+        error_code = NULL
+      WHERE run_id = ${runId}
+    `,
+  ]);
 }
 
 /**

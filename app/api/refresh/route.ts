@@ -2,8 +2,14 @@ import { timingSafeEqual, randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   acquireWeatherSyncLock,
+  createWeatherSyncRun,
+  markWeatherSyncFailure,
   releaseWeatherSyncLock,
 } from '@/lib/database';
+import {
+  synchronizeWeatherFromCwa,
+  WeatherSyncError,
+} from '@/lib/weather-sync';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -44,6 +50,7 @@ async function handleRefresh(request: NextRequest) {
   }
 
   const runId = randomUUID();
+  let runCreated = false;
 
   try {
     const lockAcquired = await acquireWeatherSyncLock(runId);
@@ -55,16 +62,39 @@ async function handleRefresh(request: NextRequest) {
       );
     }
 
+    await createWeatherSyncRun(runId);
+    runCreated = true;
+    console.info('Weather synchronization started', { runId });
+
+    const result = await synchronizeWeatherFromCwa(runId);
+    console.info('Weather synchronization completed', {
+      runId,
+      count: result.count,
+    });
+
     return NextResponse.json({
       success: true,
-      message: '受保護的同步入口已就緒；資料更新將於下一階段啟用',
-      status: 'ready',
+      message: '氣象資料已完成同步',
+      count: result.count,
+      updated_at: result.updatedAt,
     });
   } catch (error) {
-    console.error('Weather refresh endpoint failed:', error);
+    const errorCode =
+      error instanceof WeatherSyncError ? error.code : 'UNEXPECTED_ERROR';
+
+    if (runCreated) {
+      await markWeatherSyncFailure(runId, errorCode).catch((logError) => {
+        console.error('Failed to record weather synchronization failure', {
+          runId,
+          error: logError instanceof Error ? logError.message : 'unknown',
+        });
+      });
+    }
+
+    console.error('Weather synchronization failed', { runId, errorCode });
     return NextResponse.json(
       { success: false, error: '資料同步服務暫時無法使用' },
-      { status: 500 }
+      { status: 502 }
     );
   } finally {
     await releaseWeatherSyncLock(runId).catch((error) => {

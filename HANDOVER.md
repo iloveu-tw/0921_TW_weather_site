@@ -6,7 +6,7 @@
 > **目前分支**：`main`  
 > **本地開發伺服器**：`http://localhost:3000`  
 
-> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，CWA 原子同步將於 P0-04 啟用。
+> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，並完成 CWA 資料驗證、Transaction 原子更新及同步結果紀錄。Live 排程尚未啟用。
 
 ---
 
@@ -82,7 +82,7 @@ taiwan-weather-site/
 │   ├── page.tsx               # Web GIS 核心主儀表板頁面
 │   └── api/
 │       ├── weather/route.ts   # 氣象資料讀取 API (從 Neon PostgreSQL 回傳觀測值)
-│       └── refresh/route.ts   # 受 CRON_SECRET 與 Neon 租約鎖保護的同步入口
+│       └── refresh/route.ts   # 受保護的 CWA → Neon 原子同步入口
 │
 ├── components/                # 前端核心 React UI 元件
 │   ├── Header.tsx             # 頂部標題列與資料連線狀態指示
@@ -94,7 +94,9 @@ taiwan-weather-site/
 │   └── weather.db             # 本地 SQLite 資料庫 (存放 weather_observations 資料表，已 .gitignore)
 │
 ├── lib/
-│   └── database.ts            # Neon PostgreSQL 查詢與同步租約鎖封裝模組
+│   ├── database.ts            # Neon PostgreSQL 查詢、Transaction 與同步紀錄
+│   ├── weather-sync.ts        # CWA 擷取與同步流程
+│   └── weather-validation.ts  # 快照欄位、筆數、唯一性與合理範圍驗證
 │
 ├── public/
 │   └── geo/

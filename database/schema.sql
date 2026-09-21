@@ -20,3 +20,15 @@ CREATE TABLE IF NOT EXISTS weather_sync_locks (
     started_at TIMESTAMPTZ NOT NULL,
     locked_until TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS weather_sync_runs (
+    run_id UUID PRIMARY KEY,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
+    status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed')),
+    record_count INTEGER,
+    error_code TEXT
+);
+
+CREATE INDEX IF NOT EXISTS weather_sync_runs_started_at_idx
+    ON weather_sync_runs (started_at DESC);
