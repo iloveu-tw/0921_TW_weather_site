@@ -1,0 +1,24 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor / Preview files
+.npp-md-preview.html
+*.swp
+*.swo
+
+# Environment & Logs
+.env
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Node / Web
+node_modules/
+dist/
+build/
