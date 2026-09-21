@@ -33,7 +33,9 @@ async function fetchWeatherSnapshot() {
 export default function HomePage() {
   const [stations, setStations] = useState<WeatherObservation[]>([]);
   const [selectedStation, setSelectedStation] = useState<WeatherObservation | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [observationTime, setObservationTime] = useState<string>('');
+  const [syncedAt, setSyncedAt] = useState<string>('');
+  const [isStale, setIsStale] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -44,7 +46,9 @@ export default function HomePage() {
       .then((result) => {
         if (!active) return;
         setStations(result.data);
-        setLastUpdated(result.updated_at ?? '');
+        setObservationTime(result.observation_time ?? '');
+        setSyncedAt(result.synced_at ?? '');
+        setIsStale(result.is_stale);
       })
       .catch((error: unknown) => {
         if (!active) return;
@@ -70,7 +74,9 @@ export default function HomePage() {
     try {
       const result = await fetchWeatherSnapshot();
       setStations(result.data);
-      setLastUpdated(result.updated_at ?? '');
+      setObservationTime(result.observation_time ?? '');
+      setSyncedAt(result.synced_at ?? '');
+      setIsStale(result.is_stale);
     } catch (error) {
       setErrorMsg(
         error instanceof Error
@@ -85,7 +91,11 @@ export default function HomePage() {
   return (
     <div className="app-container">
       {/* 頂部標題列 */}
-      <Header lastUpdated={lastUpdated} />
+      <Header
+        observationTime={observationTime}
+        syncedAt={syncedAt}
+        isStale={isStale}
+      />
 
       {/* 載入與錯誤狀態 */}
       {isLoading && stations.length === 0 && (

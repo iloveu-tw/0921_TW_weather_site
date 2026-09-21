@@ -57,6 +57,24 @@ export async function getWeatherObservationCount(): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
+export async function getLatestSuccessfulSyncTime(): Promise<string | null> {
+  const sql = neon(getDatabaseUrl());
+  const rows = await sql`
+    SELECT to_char(
+      completed_at AT TIME ZONE 'UTC',
+      'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+    ) AS completed_at
+    FROM weather_sync_runs
+    WHERE status = 'success'
+    ORDER BY completed_at DESC
+    LIMIT 1
+  `;
+
+  return typeof rows[0]?.completed_at === 'string'
+    ? rows[0].completed_at
+    : null;
+}
+
 export async function createWeatherSyncRun(runId: string): Promise<void> {
   const sql = neon(getDatabaseUrl());
   await sql`

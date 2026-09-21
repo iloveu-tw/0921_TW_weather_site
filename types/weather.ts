@@ -21,7 +21,10 @@ export interface WeatherObservation {
 export interface WeatherApiSuccessResponse {
   success: true;
   count: number;
-  updated_at: string | null;
+  observation_time: string | null;
+  synced_at: string | null;
+  is_stale: boolean;
+  stale_after_minutes: number;
   data: WeatherObservation[];
 }
 

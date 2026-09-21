@@ -4,13 +4,14 @@ import React from 'react';
 import { MapPin, Database } from 'lucide-react';
 
 interface HeaderProps {
-  lastUpdated: string;
+  observationTime: string;
+  syncedAt: string;
+  isStale: boolean;
 }
 
-export default function Header({ lastUpdated }: HeaderProps) {
-  // 格式化觀測時間顯示
-  const formattedTime = lastUpdated
-    ? new Date(lastUpdated).toLocaleString('zh-TW', {
+function formatTime(value: string): string {
+  return value
+    ? new Date(value).toLocaleString('zh-TW', {
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -19,6 +20,15 @@ export default function Header({ lastUpdated }: HeaderProps) {
         hour12: false,
       })
     : '讀取中...';
+}
+
+export default function Header({
+  observationTime,
+  syncedAt,
+  isStale,
+}: HeaderProps) {
+  const formattedObservationTime = formatTime(observationTime);
+  const formattedSyncTime = formatTime(syncedAt);
 
   return (
     <header className="app-header" id="main-header">
@@ -29,9 +39,9 @@ export default function Header({ lastUpdated }: HeaderProps) {
           </div>
         </div>
         <div className="brand-text">
-          <div className="brand-badge">
+          <div className={`brand-badge ${isStale ? 'stale' : ''}`}>
             <span className="badge-pulse"></span>
-            <span>CWA Open Data 即時連線</span>
+            <span>{isStale ? 'CWA 資料已過期' : 'CWA 資料為最新狀態'}</span>
             <span className="badge-pill">Phase 3 Web GIS</span>
           </div>
           <h1 className="brand-title">台灣即時氣象 GIS 觀測圖台</h1>
@@ -49,8 +59,12 @@ export default function Header({ lastUpdated }: HeaderProps) {
             <span className="meta-value">Neon PostgreSQL</span>
           </div>
           <div className="meta-item">
-            <span className="meta-label">最後觀測時間:</span>
-            <span className="meta-value highlight">{formattedTime}</span>
+            <span className="meta-label">CWA 觀測時間:</span>
+            <span className="meta-value highlight">{formattedObservationTime}</span>
+          </div>
+          <div className="meta-item">
+            <span className="meta-label">Neon 同步時間:</span>
+            <span className="meta-value">{formattedSyncTime}</span>
           </div>
         </div>
       </div>

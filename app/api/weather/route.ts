@@ -1,17 +1,35 @@
 import { NextResponse } from 'next/server';
-import { getAllObservations } from '@/lib/database';
+import {
+  getAllObservations,
+  getLatestSuccessfulSyncTime,
+} from '@/lib/database';
+import {
+  isWeatherObservationStale,
+  WEATHER_STALE_AFTER_MINUTES,
+} from '@/lib/weather-freshness';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await getAllObservations();
-    const updatedAt = data.length > 0 ? data[0].observation_time : null;
+    const [data, syncedAt] = await Promise.all([
+      getAllObservations(),
+      getLatestSuccessfulSyncTime(),
+    ]);
+    const observationTime = data.reduce<string | null>((latest, record) => {
+      if (!latest) return record.observation_time;
+      return Date.parse(record.observation_time) > Date.parse(latest)
+        ? record.observation_time
+        : latest;
+    }, null);
 
     return NextResponse.json({
       success: true,
       count: data.length,
-      updated_at: updatedAt,
+      observation_time: observationTime,
+      synced_at: syncedAt,
+      is_stale: isWeatherObservationStale(observationTime),
+      stale_after_minutes: WEATHER_STALE_AFTER_MINUTES,
       data,
     });
   } catch (error) {

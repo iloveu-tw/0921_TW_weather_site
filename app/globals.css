@@ -150,6 +150,17 @@ body::after {
   margin-bottom: 4px;
 }
 
+.brand-badge.stale {
+  color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.brand-badge.stale .badge-pulse {
+  background-color: var(--accent-amber);
+  box-shadow: 0 0 8px var(--accent-amber);
+}
+
 .badge-pulse {
   width: 6px;
   height: 6px;
