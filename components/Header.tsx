@@ -39,7 +39,11 @@ export default function Header({
           </div>
         </div>
         <div className="brand-text">
-          <div className={`brand-badge ${isStale ? 'stale' : ''}`}>
+          <div
+            className={`brand-badge ${isStale ? 'stale' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
             <span className="badge-pulse"></span>
             <span>{isStale ? 'CWA 資料已過期' : 'CWA 資料為最新狀態'}</span>
             <span className="badge-pill">Phase 3 Web GIS</span>

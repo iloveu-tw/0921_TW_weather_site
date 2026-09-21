@@ -394,7 +394,12 @@ export default function WeatherMap({
   return (
     <div className="map-wrapper" id="web-gis-map-container">
       {/* 地圖容器 */}
-      <div ref={mapContainerRef} className="map-view" />
+      <div
+        ref={mapContainerRef}
+        className="map-view"
+        role="region"
+        aria-label="台灣氣象測站互動地圖"
+      />
 
       {/* 地圖上層浮動控制欄 (Glassmorphism Toolbar) */}
       <div className="map-toolbar">
@@ -404,6 +409,7 @@ export default function WeatherMap({
             <button
               id="btn-basemap-dark"
               className={`metric-btn ${baseMap === 'esriDark' ? 'active' : ''}`}
+              aria-pressed={baseMap === 'esriDark'}
               onClick={() => setBaseMap('esriDark')}
               title="切換為 Esri 深色極簡畫布（免 Key、無浮水印）"
             >
@@ -413,6 +419,7 @@ export default function WeatherMap({
             <button
               id="btn-basemap-osm"
               className={`metric-btn ${baseMap === 'osm' ? 'active' : ''}`}
+              aria-pressed={baseMap === 'osm'}
               onClick={() => setBaseMap('osm')}
               title="切換為 OpenStreetMap 標準街道圖（免 Key）"
             >
@@ -422,6 +429,7 @@ export default function WeatherMap({
             <button
               id="btn-basemap-satellite"
               className={`metric-btn ${baseMap === 'satellite' ? 'active' : ''}`}
+              aria-pressed={baseMap === 'satellite'}
               onClick={() => setBaseMap('satellite')}
               title="切換為 Esri 衛星空照圖（免 Key）"
             >
@@ -435,6 +443,7 @@ export default function WeatherMap({
             <button
               id="btn-metric-temp"
               className={`metric-btn ${metricMode === 'temp' ? 'active' : ''}`}
+              aria-pressed={metricMode === 'temp'}
               onClick={() => setMetricMode('temp')}
               title="以氣溫著色"
             >
@@ -444,6 +453,7 @@ export default function WeatherMap({
             <button
               id="btn-metric-rain"
               className={`metric-btn ${metricMode === 'rain' ? 'active' : ''}`}
+              aria-pressed={metricMode === 'rain'}
               onClick={() => setMetricMode('rain')}
               title="以雨量著色"
             >
@@ -457,6 +467,7 @@ export default function WeatherMap({
             <button
               id="btn-toggle-counties"
               className={`layer-toggle-btn ${showCounties ? 'active' : ''}`}
+              aria-pressed={showCounties}
               onClick={() => setShowCounties(!showCounties)}
               title="切換顯示台灣縣市邊界圖層"
             >
@@ -467,6 +478,7 @@ export default function WeatherMap({
             <button
               id="btn-toggle-stations"
               className={`layer-toggle-btn ${showStations ? 'active' : ''}`}
+              aria-pressed={showStations}
               onClick={() => setShowStations(!showStations)}
               title="切換顯示氣象站點"
             >

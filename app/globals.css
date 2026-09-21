@@ -42,6 +42,23 @@
   padding: 0;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:where(button, input, select, [tabindex]):focus-visible {
+  outline: 3px solid #67e8f9;
+  outline-offset: 3px;
+}
+
 html, body {
   background-color: var(--bg-primary);
   color: var(--text-main);
@@ -383,11 +400,17 @@ body::after {
   grid-template-columns: 1.25fr 1fr;
   gap: 20px;
   align-items: stretch;
+  min-width: 0;
+}
+
+.gis-map-section,
+.gis-table-section {
+  min-width: 0;
 }
 
 @media (max-width: 1200px) {
   .gis-dashboard-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -852,7 +875,7 @@ body::after {
 /* Table Scroll Area */
 .table-scroll-container {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: rgba(15, 23, 42, 0.4);
@@ -872,6 +895,7 @@ body::after {
 
 .weather-data-table {
   width: 100%;
+  min-width: 650px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.82rem;
@@ -891,22 +915,27 @@ body::after {
   z-index: 10;
 }
 
-.weather-data-table th.sortable {
+.th-sort-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
   cursor: pointer;
   user-select: none;
 }
 
-.weather-data-table th.sortable:hover {
+.th-sort-button:hover {
   color: #38bdf8;
 }
 
-.th-content {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.th-content.right {
+.th-sort-button.right {
   justify-content: flex-end;
 }
 
@@ -1094,5 +1123,64 @@ body::after {
   .map-toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .table-controls,
+  .filter-group,
+  .select-wrapper,
+  .county-select {
+    width: 100%;
+  }
+
+  .filter-group {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-title {
+    font-size: 1.35rem;
+  }
+
+  .section-badge {
+    display: none;
+  }
+
+  .map-toolbar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    gap: 6px;
+  }
+
+  .toolbar-group {
+    gap: 6px;
+  }
+
+  .metric-btn,
+  .layer-toggle-btn,
+  .btn-reset-view {
+    padding: 7px 9px;
+    font-size: 0.72rem;
+  }
+
+  .map-legend {
+    left: 10px;
+    right: 10px;
+    bottom: 14px;
+    padding: 10px 12px;
+  }
+
+  .legend-items {
+    gap: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

@@ -87,6 +87,13 @@ export default function WeatherTable({
     setCurrentPage(1);
   };
 
+  const getAriaSort = (
+    field: SortField
+  ): React.AriaAttributes['aria-sort'] => {
+    if (sortField !== field) return 'none';
+    return sortOrder === 'asc' ? 'ascending' : 'descending';
+  };
+
   return (
     <div className="table-card" id="weather-table-container">
       {/* 搜尋與篩選列 */}
@@ -97,6 +104,7 @@ export default function WeatherTable({
             id="input-search-station"
             type="text"
             className="search-input"
+            aria-label="搜尋氣象測站名稱或站號"
             placeholder="搜尋測站名稱或站號（例如：臺中、467490）..."
             value={searchTerm}
             onChange={(e) => {
@@ -112,6 +120,7 @@ export default function WeatherTable({
             <select
               id="select-county-filter"
               className="county-select"
+              aria-label="依縣市篩選氣象測站"
               value={selectedCounty}
               onChange={(e) => {
                 setSelectedCounty(e.target.value);
@@ -127,7 +136,7 @@ export default function WeatherTable({
             </select>
           </div>
 
-          <span className="results-count">
+          <span className="results-count" aria-live="polite">
             共 {sortedStations.length} 站
           </span>
         </div>
@@ -136,37 +145,38 @@ export default function WeatherTable({
       {/* 資料表格 */}
       <div className="table-scroll-container">
         <table className="weather-data-table">
+          <caption className="sr-only">全台氣象測站即時觀測資料</caption>
           <thead>
             <tr>
-              <th onClick={() => handleSort('station_name')} className="sortable">
-                <div className="th-content">
+              <th className="sortable" aria-sort={getAriaSort('station_name')}>
+                <button className="th-sort-button" onClick={() => handleSort('station_name')}>
                   <span>測站資訊</span>
                   <ArrowUpDown className="sort-icon" />
-                </div>
+                </button>
               </th>
-              <th onClick={() => handleSort('temperature')} className="sortable text-right">
-                <div className="th-content right">
+              <th className="sortable text-right" aria-sort={getAriaSort('temperature')}>
+                <button className="th-sort-button right" onClick={() => handleSort('temperature')}>
                   <span>氣溫 (°C)</span>
                   <ArrowUpDown className="sort-icon" />
-                </div>
+                </button>
               </th>
-              <th onClick={() => handleSort('rainfall')} className="sortable text-right">
-                <div className="th-content right">
+              <th className="sortable text-right" aria-sort={getAriaSort('rainfall')}>
+                <button className="th-sort-button right" onClick={() => handleSort('rainfall')}>
                   <span>降雨量 (mm)</span>
                   <ArrowUpDown className="sort-icon" />
-                </div>
+                </button>
               </th>
-              <th onClick={() => handleSort('humidity')} className="sortable text-right">
-                <div className="th-content right">
+              <th className="sortable text-right" aria-sort={getAriaSort('humidity')}>
+                <button className="th-sort-button right" onClick={() => handleSort('humidity')}>
                   <span>濕度 (%)</span>
                   <ArrowUpDown className="sort-icon" />
-                </div>
+                </button>
               </th>
-              <th onClick={() => handleSort('wind_speed')} className="sortable text-right">
-                <div className="th-content right">
+              <th className="sortable text-right" aria-sort={getAriaSort('wind_speed')}>
+                <button className="th-sort-button right" onClick={() => handleSort('wind_speed')}>
                   <span>風速 (m/s)</span>
                   <ArrowUpDown className="sort-icon" />
-                </div>
+                </button>
               </th>
               <th className="text-center">地圖定位</th>
             </tr>
@@ -221,6 +231,7 @@ export default function WeatherTable({
                     <td className="text-center">
                       <button
                         className="btn-locate"
+                        aria-label={`在地圖上定位 ${station.station_name} 測站`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectStation(station);
