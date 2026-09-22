@@ -2,14 +2,14 @@
 
 > 以交通部中央氣象署（CWA）Open Data 為資料來源，建立可儲存氣象資料、在台灣 GIS 地圖上空間視覺化，並具備自動部署能力之全端 Web GIS 專案。
 
-> **資料架構更新（2026-09-22）**：網站 Runtime 已改為讀取 Neon PostgreSQL；原始 SQLite 檔案僅保留於本機作為遷移來源與復原依據。同步入口已使用 `CRON_SECRET` 與 Neon 租約鎖保護，CWA 資料會先通過完整性驗證，再以 Transaction 原子更新 Neon。目前 Live 部署與排程尚未啟用。
+> **Live 狀態（2026-09-22）**：網站已部署至 [Vercel Production](https://taiwan-weather-site.vercel.app)，Runtime 使用 Neon PostgreSQL；原始 SQLite 僅保留於本機作為遷移來源。同步入口具備 `CRON_SECRET`、Neon 租約鎖、資料驗證及 Transaction，Live 排程尚未啟用。
 
 ---
 
 ## 🌟 系統亮點與功能
 
-- **台灣 Web GIS 底圖圖台**：以 Leaflet.js 搭配 CartoDB Dark Matter 深色圖資，流暢平移（Pan）與縮放（Zoom），預設以台灣全島為中心視野。
-- **全台 800+ 氣象測站即時視覺化**：自 SQLite 讀取 876 座測站經緯度精確定位，支援「**氣溫分布**」與「**降雨分布**」雙模式動態分色。
+- **台灣 Web GIS 底圖圖台**：以 Leaflet.js 搭配 Esri 深色／衛星底圖及 OpenStreetMap，支援流暢平移、縮放與全島視野復位。
+- **全台 800+ 氣象測站即時視覺化**：從 Neon PostgreSQL 讀取 876 座測站並精確定位，支援「**氣溫分布**」與「**降雨分布**」雙模式動態分色。
 - **台灣 22 縣市行政區圖層**：疊加台灣縣市界線 GeoJSON 多邊形圖層，支援邊框發光、懸停高亮（Hover Highlight）與縣市名稱標籤。
 - **空間彈窗（Glassmorphism Popup）**：點擊任一測站標記即展開氣溫、雨量、相對濕度、風速與觀測時間之卡片。
 - **資料檢索與飛入定位（Fly-to Sync）**：
@@ -60,7 +60,7 @@
 ## 🛠️ 技術堆疊
 
 - **前端框架**：Next.js 16 (Turbopack, App Router) + TypeScript + React 19
-- **GIS 地圖引擎**：Leaflet.js + CartoDB Dark Tiles + GeoJSON
+- **GIS 地圖引擎**：Leaflet.js + Esri／OpenStreetMap + GeoJSON
 - **使用者介面**：原生 Vanilla CSS（現代深色模式、玻璃擬態 Glassmorphism、響應式排版、Google Fonts: Inter & Outfit）
 - **後端資料庫**：Neon Serverless PostgreSQL (`@neondatabase/serverless`)
 - **資料擷取管線**：Next.js Route Handler + CWA JSON 正規化、資料驗證與原子 Transaction
@@ -108,10 +108,10 @@ npm run ops:status
 ## 📅 專案開發階段里程碑 (Progress)
 
 - [x] **Phase 1 — CWA API**：驗證中央氣象署 Open Data API 連線與資料解析。
-- [x] **Phase 2 — Database**：建立 SQLite `weather.db` 資料庫與 `weather_observations` 資料表，完成 876 筆站點入庫與查詢驗證。
+- [x] **Phase 2 — Database**：完成 876 筆 SQLite 原始資料驗證，並遷移至 Neon PostgreSQL 作為正式 Runtime 資料庫。
 - [x] **Phase 3 — Local Taiwan Web GIS**：完成 Next.js + Leaflet 台灣氣象地圖圖台、縣市界線、即時圖表與空間檢索。
 - [x] **Phase 4 — Git / GitHub**：版本控制建立，機敏檔案透過 `.gitignore` 嚴格保護，並推送至 GitHub 倉庫。
-- [ ] **Phase 5 — Vercel Deployment**：線上雲端部署與自動化 CI/CD 發布。
+- [x] **Phase 5 — Vercel Deployment**：Production 上線並連結 GitHub 自動部署；CWA Live 排程仍待設定。
 
 ---
 

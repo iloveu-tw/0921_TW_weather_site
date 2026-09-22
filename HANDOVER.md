@@ -3,8 +3,9 @@
 > **專案全稱**：AIoT DIC-2 — 台灣即時氣象空間資訊系統 (CWA Weather GIS)  
 > **建立日期**：2026-09-21  
 > **GitHub 倉庫**：[https://github.com/iloveu-tw/0921_TW_weather_site](https://github.com/iloveu-tw/0921_TW_weather_site)  
-> **目前分支**：`main`  
+> **目前分支**：`codex/p1-05-testing-ops`
 > **本地開發伺服器**：`http://localhost:3000`  
+> **Production**：<https://taiwan-weather-site.vercel.app>（`main` 自動部署）
 
 > **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，並完成 CWA 資料驗證、Transaction 原子更新及同步結果紀錄。Live 排程尚未啟用。
 
@@ -22,7 +23,7 @@
        │   (O-A0001-001 JSON)   │
        └───────────┬────────────┘
                    │
-                   ▼ (scripts/fetch_weather.py)
+                   ▼ (受保護的 /api/refresh)
        ┌────────────────────────┐
        │  Data Cleaning / ETL   │
        │  座標提取、異常值(-99)清洗│
@@ -30,9 +31,8 @@
                    │
                    ▼
        ┌────────────────────────┐
-       │     Local Database     │
-       │   SQLite (weather.db)  │
-       │  weather_observations  │
+       │    Neon PostgreSQL     │
+       │ 快照、同步紀錄、租約鎖 │
        └───────────┬────────────┘
                    │
                    ▼ (Next.js Route Handlers: /api/weather)
@@ -56,7 +56,7 @@
 | 階段編號 | 階段名稱 | 核心實作內容與成果 | 驗收狀態 |
 |---|---|---|:---:|
 | **Phase 1** | **CWA API 資料串接** | • 串接氣象署自動氣象站資料集 `O-A0001-001`。<br>• 整合 Python `truststore` 機制，解決 macOS 環境下 Python 3.13 連線 CWA 憑證鏈問題。<br>• 成功解析全台測站、WGS84 經緯度、氣溫、雨量、濕度與風速，並妥善處理 `-99` 缺測異常值。 | ✅ 驗收通過 |
-| **Phase 2** | **CWA Weather Database** | • 建立本地 SQLite 資料庫（`data/weather.db`）。<br>• 建立符合規格之 `weather_observations` 資料表。<br>• 成功完成全台 **876 座測站**的資料清洗與正規化入庫，並通過 `SELECT` 驗證。 | ✅ 驗收通過 |
+| **Phase 2** | **CWA Weather Database** | • 以本地 SQLite 完成原始 876 筆資料驗證。<br>• 遷移至 Neon PostgreSQL，正式 Runtime 不再依賴可寫入的本地檔案。<br>• 加入原子 Transaction、同步紀錄與租約鎖。 | ✅ 驗收通過 |
 | **Phase 3** | **Local Taiwan Web GIS** | • 基於 **Next.js 16 (App Router) + TypeScript + Leaflet** 建置。<br>• **底圖圖台**：預設採用 Esri Dark Gray 深色畫布，無任何浮水印，支援放大、縮小、平移與一鍵全島復位。<br>• **三合一免 Key 底圖切換**：深色畫布、標準街道圖（OSM）、高解析度衛星影像。<br>• **台灣縣市圖層**：載入 22 縣市 GeoJSON 邊界，具備發光藍框、Hover 高亮與縣市名稱 Tooltip。<br>• **876 測站空間視覺化**：支援「氣溫分布」與「雨量分布」動態色階標記切換。<br>• **空間彈窗（Popup）**：點擊 Marker 呈現高質感深色玻璃擬態氣象卡片。<br>• **連動檢索表格**：即時關鍵字搜尋、縣市篩選、指標排序，點擊「定位」按鈕地圖即平滑飛入（Fly-to）該站並自動彈窗。<br>• **即時統計概況**：5 大即時 KPI 統計卡（在線測站、極值氣溫、最大降雨、平均濕度）。 | ✅ 驗收通過（瀏覽器預覽已確認） |
 | **Phase 4** | **Git / GitHub 版本控制** | • 初始化 Git 並綁定遠端倉庫 `https://github.com/iloveu-tw/0921_TW_weather_site`。<br>• 嚴格配置 `.gitignore`，隔絕真實金鑰 `.env` 與本地 SQLite 檔案。<br>• 設置 GitHub 匿名電子郵件避免隱私阻擋，各階段變更均已推送至 `origin/main`。 | ✅ 驗收通過 |
 
@@ -96,7 +96,7 @@ taiwan-weather-site/
 ├── lib/
 │   ├── database.ts            # Neon PostgreSQL 查詢、Transaction 與同步紀錄
 │   ├── weather-sync.ts        # CWA 擷取與同步流程
-│   └── weather-validation.ts  # 快照欄位、筆數、唯一性與合理範圍驗證
+│   ├── weather-validation.ts  # 快照欄位、筆數、唯一性與合理範圍驗證
 │   └── weather-view.ts        # 統計、搜尋、排序與分頁純函式
 │
 ├── public/
@@ -162,15 +162,12 @@ taiwan-weather-site/
 
 交接後可依專案需求選擇以下任一方向繼續推進：
 
-### 🎯 方向 A：邁向 Phase 5 — Vercel 雲端自動化部署（生產環境上線）
-* **目標**：將 GitHub Repository 連接至 Vercel 雲端平台，實現每次 `git push` 即自動部署上線。
+### 🎯 方向 A：完成 Live 維運驗收
+* **目前狀態**：Vercel Production、Neon PostgreSQL、GitHub 自動部署及機密環境變數均已完成設定。
 * **待處理工作**：
-  1. **Vercel 專案建立**：於 [vercel.com](https://vercel.com) 匯入 `iloveu-tw/0921_TW_weather_site`。
-  2. **環境變數設定**：於 Vercel Project Settings 加入 `CWA_API_KEY=YOUR_CWA_API_KEY`。
-  3. **Serverless 架構資料庫適配**：
-     * *說明*：Vercel Serverless Function 屬唯讀臨時容器，不適合寫入本地 SQLite 檔案。
-     * *方案 A-1 (靜態/直接串接)*：修改 `/api/weather`，在線上環境若無 SQLite，直接由 Serverless 端點快取呼叫 CWA API 回傳 JSON。
-     * *方案 A-2 (正式雲端 DB)*：依設計文件第 9 節規範，串接免費的 Serverless PostgreSQL（如 Neon / Supabase / Vercel Postgres），將資料儲存於雲端。
+  1. 完成 P1-05 受控失敗、API／UI 回歸與維運文件驗收。
+  2. 完成 P1-06 Staging、跨瀏覽器、圖資 attribution 與 Rollback 演練。
+  3. 確認 Vercel 方案與更新頻率後，建立受 `CRON_SECRET` 保護的 CWA Live 排程。
 
 ---
 
