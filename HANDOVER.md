@@ -3,11 +3,11 @@
 > **專案全稱**：AIoT DIC-2 — 台灣即時氣象空間資訊系統 (CWA Weather GIS)  
 > **建立日期**：2026-09-21  
 > **GitHub 倉庫**：[https://github.com/iloveu-tw/0921_TW_weather_site](https://github.com/iloveu-tw/0921_TW_weather_site)  
-> **目前分支**：`codex/p1-05-testing-ops`
+> **目前分支**：`main`
 > **本地開發伺服器**：`http://localhost:3000`  
 > **Production**：<https://taiwan-weather-site.vercel.app>（`main` 自動部署）
 
-> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，並完成 CWA 資料驗證、Transaction 原子更新及同步結果紀錄。GitHub Actions 每小時整點觸發 Live 同步。
+> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，並完成 CWA 資料驗證、Transaction 原子更新及同步結果紀錄。GitHub Actions 每小時整點觸發 Live 同步，手動端到端驗證已成功更新 876 筆測站。
 
 ---
 

@@ -2,7 +2,7 @@
 
 > 文件建立日期：2026-09-21  
 > 適用專案：AIoT DIC-2 — CWA Weather GIS  
-> 目前階段：Vercel Production 已上線；P1-05 已完成，GitHub Actions 每小時 CWA 排程待合併後驗證，P1-06 待續
+> 目前階段：Vercel Production 已上線；P1-05 與 GitHub Actions 每小時 CWA 排程已完成，P1-06 待續
 > 文件目的：追蹤正式公開網站前的必要改善、驗證證據與上線決策。
 
 ## 1. 上線目標
@@ -557,7 +557,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
-| 2026-09-22 | 新增 GitHub Actions 每小時 CWA → Neon 排程、單工 concurrency、HTTP 與筆數成功條件；GitHub `CRON_SECRET` 已安全設定 | 待合併 `main` 後手動執行並確認 Live 同步時間，通過才算完成 |
+| 2026-09-22 | 新增 GitHub Actions 每小時 CWA → Neon 排程、單工 concurrency、HTTP 與筆數成功條件；GitHub `CRON_SECRET` 已安全設定；[首次手動執行](https://github.com/iloveu-tw/0921_TW_weather_site/actions/runs/35695727766) 成功同步 876 筆 | 排程端到端驗證完成；Neon 健康狀態正常，Vercel Production 部署成功 |
 | 2026-09-22 | 修正縣市邊界圖層攔截測站點擊；加入 12 px 鄰近測站判定並移除空白焦點框，Test／Lint／TypeScript／Build 與使用者手動測試均通過 | 使用者授權合併 `main` 並推送 GitHub |
 | 2026-09-22 | 完成 P1-05 最終 Test／Lint／TypeScript／Build、資料庫與 CWA 受控失敗保留、成功回復、UI 7／7、健康查詢及文件一致性驗證 | P1-05 完成；等待 Preview 確認與合併決策後進入 P1-06 |
 | 2026-09-22 | 安裝 Vercel GitHub App 並連結 `iloveu-tw/0921_TW_weather_site`；Production Branch 為 `main`，自動建立 Deployment 已啟用 | 後續 `main` Push 將自動部署 Production，其他分支／PR 建立 Preview |
@@ -585,18 +585,15 @@ Live 發布
 
 ### 安全停點
 
-- 目前工作分支：`codex/p1-05-testing-ops`
-- P1-05 備份基準 Commit：`edf1711`；P1-05 已完成，最新續作狀態以此分支遠端 HEAD 與本節為準。
-- Production Commit：`1dab462`，網址：<https://taiwan-weather-site.vercel.app>
-- P1-05 Preview：<https://taiwan-weather-site-git-codex-p1-05-testing-ops-taiwan-weather1.vercel.app>
-- 使用者已手動確認 Production 網頁正常；基本 Smoke Check 為首頁 200、氣象 API 200／876 筆、未授權更新 401。
+- 目前工作分支：`main`
+- Production 功能基準 Commit：`ff9bcbb`，網址：<https://taiwan-weather-site.vercel.app>
+- 備份分支：`codex/p1-05-testing-ops`，遠端 HEAD 為 `ff9bcbb`。
+- 使用者已手動確認地圖修正；Vercel Production Deployment 與 GitHub Actions 每小時同步均已驗證成功。
 - Vercel 已連結 GitHub Repository `iloveu-tw/0921_TW_weather_site`，Production Branch 為 `main`；Preview／Production 已設定 `DATABASE_URL`、`CWA_API_KEY`、`CRON_SECRET`，文件不保存實際值。
-- GitHub Actions 每小時 CWA 排程已建立於功能分支，`CRON_SECRET` 已設定；待合併 `main` 後手動執行驗證。
+- GitHub Actions `CRON_SECRET` 已設定；每小時整點排程已啟用，首次手動執行成功同步 876 筆。
 
 ### 續作順序
 
-1. 確認位於 `codex/p1-05-testing-ops`；提交並 Push 本次 P1-05 完成紀錄。
-2. 檢查更新後的 Vercel Preview，再由使用者確認是否建立 PR／合併 `main`；合併會觸發 Production 自動部署。
-3. 未經使用者確認不要切換或 Push `main`。
-4. 下一階段為 P1-06 Staging、跨瀏覽器、attribution 與 Rollback 演練。
-5. 合併後手動執行 `Sync CWA weather snapshot`，確認 Neon 與 Live 同步時間更新；失敗時依 `OPERATIONS.md` 判讀。
+1. 下一階段為 P1-06 Staging、跨瀏覽器、attribution 與 Rollback 演練。
+2. 每小時排程異常時，先查看 GitHub Actions Run，再依 `OPERATIONS.md` 判讀 Neon 與 CWA 錯誤。
+3. 修改正式功能前建立 `codex/` 分支；未經使用者確認不要再次直接 Push `main`。

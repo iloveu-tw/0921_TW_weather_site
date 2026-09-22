@@ -26,6 +26,8 @@ npm run ops:status
 - `concurrency` 只允許一個工作執行，後端 Neon 租約鎖則防止其他來源重複同步。
 - 維護或資料還原前，可在 GitHub Actions 停用 `Sync CWA weather snapshot` 工作流程；完成檢查後再啟用。
 
+首次正式驗證於 2026-09-22 完成：[GitHub Actions Run 35695727766](https://github.com/iloveu-tw/0921_TW_weather_site/actions/runs/35695727766) 成功同步 876 筆測站，Neon 最新同步狀態為 `success` 且無錯誤碼。
+
 ## 3. 手動觸發受保護同步
 
 正式網站沒有公開手動更新按鈕。維運者可從受信任終端呼叫：
