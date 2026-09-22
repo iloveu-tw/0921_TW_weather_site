@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "台灣即時氣象 GIS｜資料同步、服務與部署流程",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 620]
+  },
+  "stages": [
+    { "label": "觸發與來源" },
+    { "label": "安全入口" },
+    { "label": "驗證與發布" },
+    { "label": "儲存與服務" },
+    { "label": "視覺化與維運" }
+  ],
+  "nodes": [
+    { "id": "hourlyScheduler", "type": "cloud", "label": "GitHub Actions", "sublabel": "每小時排程", "stage": 0, "row": 0, "tag": "CRON_SECRET" },
+    { "id": "cwaOpenData", "type": "external", "label": "CWA Open Data", "sublabel": "O-A0001-001 自動氣象站", "stage": 0, "row": 1, "tag": "JSON" },
+    { "id": "githubRepository", "type": "cloud", "label": "GitHub Repository", "sublabel": "main 分支", "stage": 0, "row": 3, "tag": "Git Push" },
+    { "id": "refreshEndpoint", "type": "security", "label": "/api/refresh", "sublabel": "Bearer 驗證與租約鎖", "stage": 1, "row": 1, "tag": "Server-to-Server" },
+    { "id": "weatherPipeline", "type": "backend", "label": "氣象資料處理管線", "sublabel": "正規化、完整性與時效驗證", "stage": 2, "row": 1, "tag": "Fail Closed" },
+    { "id": "vercelDeploy", "type": "cloud", "label": "Vercel Production", "sublabel": "Next.js 自動建置與部署", "stage": 3, "row": 3, "tag": "Auto Deploy" },
+    { "id": "neonSnapshot", "type": "database", "label": "Neon PostgreSQL", "sublabel": "原子快照、同步紀錄與鎖", "stage": 3, "row": 1, "tag": "Transaction" },
+    { "id": "webGisDashboard", "type": "frontend", "label": "Taiwan Weather GIS", "sublabel": "Leaflet 地圖與測站清單", "stage": 4, "row": 1, "tag": "876 Stations" },
+    { "id": "operationsMonitor", "type": "backend", "label": "維運健康檢查", "sublabel": "同步狀態、筆數與錯誤碼", "stage": 4, "row": 2, "tag": "ops:status" }
+  ],
+  "flows": [
+    { "id": "scheduledRefresh", "from": "hourlyScheduler", "to": "refreshEndpoint", "label": "每小時授權請求", "classification": "Bearer secret", "variant": "security" },
+    { "id": "authorizedRun", "from": "refreshEndpoint", "to": "weatherPipeline", "label": "取得同步執行權", "classification": "single lease", "variant": "security" },
+    { "id": "cwaObservations", "from": "cwaOpenData", "to": "refreshEndpoint", "label": "全台觀測資料", "classification": "CWA JSON", "variant": "emphasis", "route": "straight", "labelDy": 53 },
+    { "id": "atomicSnapshot", "from": "weatherPipeline", "to": "neonSnapshot", "label": "驗證後原子替換", "classification": "876-row snapshot", "variant": "emphasis" },
+    { "id": "latestSnapshot", "from": "neonSnapshot", "to": "webGisDashboard", "label": "查詢", "classification": "GET /api/weather · latest snapshot JSON", "variant": "emphasis", "route": "straight", "labelDy": -40 },
+    { "id": "healthMetrics", "from": "neonSnapshot", "to": "operationsMonitor", "label": "健康指標與錯誤碼", "classification": "operational query", "variant": "dashed" },
+    { "id": "sourcePush", "from": "githubRepository", "to": "vercelDeploy", "label": "main Push 自動發布", "classification": "verified build", "variant": "dashed" }
+  ]
+}

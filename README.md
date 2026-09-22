@@ -40,37 +40,13 @@
 
 ## 🏗️ 系統架構與資料流
 
-```text
-       ┌────────────────────────┐
-       │   CWA Open Data API    │
-       │   (O-A0001-001 JSON)   │
-       └───────────┬────────────┘
-                   │
-                   ▼ (受保護的 /api/refresh)
-       ┌────────────────────────┐
-       │  Data Cleaning / ETL   │
-       │   資料清洗與正規化處理   │
-       └───────────┬────────────┘
-                   │
-                   ▼
-       ┌────────────────────────┐
-       │  Neon PostgreSQL       │
-       │  原子快照與同步紀錄     │
-       └───────────┬────────────┘
-                   │
-                   ▼ (Next.js Route Handlers: /api/weather)
-       ┌────────────────────────┐
-       │   Next.js 16 Web App   │
-       │    App Router 架構     │
-       └───────────┬────────────┘
-                   │
-                   ▼
-       ┌────────────────────────┐
-       │   Taiwan Web GIS GUI   │
-       │ Leaflet + Dark Theme   │
-       │  Marker / Popup / Tab  │
-       └────────────────────────┘
-```
+[![台灣即時氣象 GIS 資料同步、服務與部署流程圖](./public/taiwan-weather-project-flow.png)](https://taiwan-weather-site.vercel.app/taiwan-weather-project-flow.html)
+
+> 點擊流程圖可開啟互動版本，支援亮／暗主題、搜尋、節點聚焦、路徑追蹤、縮放與匯出。
+
+- **綠色主線**：CWA 觀測資料經安全入口、驗證管線與 PostgreSQL Transaction 寫入 Neon，再由 Web GIS 查詢最新有效快照。
+- **紅色安全線**：GitHub Actions 每小時使用 `CRON_SECRET` 呼叫 `/api/refresh`，Neon 租約鎖避免重複同步。
+- **紫色維運／發布線**：同步健康狀態可獨立檢查；`main` Push 會觸發 Vercel Production 自動部署。
 
 ---
 
