@@ -13,10 +13,20 @@ npm run ops:status
 | Exit Code | 意義 | 處理方式 |
 |---:|---|---|
 | `0` | 快照至少 500 筆、曾成功同步且最近一次同步未失敗 | 無須處理 |
-| `1` | 資料筆數不足、沒有成功紀錄或最近一次同步失敗 | 依第 3 節判讀 |
+| `1` | 資料筆數不足、沒有成功紀錄或最近一次同步失敗 | 依第 4 節判讀 |
 | `2` | `DATABASE_URL` 缺失或 Neon 無法查詢 | 檢查環境變數、Neon 狀態與網路 |
 
-## 2. 手動觸發受保護同步
+## 2. GitHub Actions 每小時排程
+
+正式排程定義於 `.github/workflows/sync-cwa.yml`，每小時整點呼叫 Production `/api/refresh`。GitHub Repository Actions Secret `CRON_SECRET` 必須與 Vercel Production 的同名環境變數一致。
+
+- GitHub Actions 頁面可使用 **Run workflow** 手動驗證。
+- 成功條件為 HTTP `200`、`success: true` 且同步筆數至少 500 筆。
+- HTTP 或回應內容異常時工作會失敗；GitHub 排程本身不會自動重試。
+- `concurrency` 只允許一個工作執行，後端 Neon 租約鎖則防止其他來源重複同步。
+- 維護或資料還原前，可在 GitHub Actions 停用 `Sync CWA weather snapshot` 工作流程；完成檢查後再啟用。
+
+## 3. 手動觸發受保護同步
 
 正式網站沒有公開手動更新按鈕。維運者可從受信任終端呼叫：
 
@@ -34,7 +44,7 @@ curl --fail-with-body \
 
 請勿把真實 Secret 寫入指令文件、Issue、Commit 或聊天記錄。
 
-## 3. 同步錯誤碼判讀
+## 4. 同步錯誤碼判讀
 
 | 錯誤碼 | 可能位置 | 優先檢查 |
 |---|---|---|
@@ -51,7 +61,7 @@ curl --fail-with-body \
 
 同步採用 PostgreSQL Transaction；任一驗證或寫入步驟失敗時，`weather_observations` 不會先被清空，前一份有效快照會繼續供網站讀取。
 
-## 4. 回復上一份有效資料
+## 5. 回復上一份有效資料
 
 若一次「成功」同步後才發現資料內容不正確，使用 Neon Point-in-Time Restore：
 
@@ -74,7 +84,7 @@ curl --fail-with-body \
 
 Neon 的可還原時間範圍依專案方案與 retention 設定而定；正式上線前必須在 Staging 演練一次並記錄可用範圍。操作依據：[Neon Point-in-Time Restore](https://neon.com/blog/announcing-point-in-time-restore)。
 
-## 5. 發布前固定檢查
+## 6. 發布前固定檢查
 
 ```bash
 npm test
@@ -84,4 +94,4 @@ npm run build
 npm run ops:status
 ```
 
-任一項失敗皆不可進入下一部署階段。Live 排程目前仍未啟用，會在 P1-06 Staging 驗收後另行設定。
+任一項失敗皆不可進入下一部署階段。排程變更合併至 `main` 後，必須手動執行一次 GitHub Action，並確認 Neon 同步紀錄與 Live 網站同步時間更新。

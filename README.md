@@ -2,7 +2,7 @@
 
 > 以交通部中央氣象署（CWA）Open Data 為資料來源，建立可儲存氣象資料、在台灣 GIS 地圖上空間視覺化，並具備自動部署能力之全端 Web GIS 專案。
 
-> **Live 狀態（2026-09-22）**：網站已部署至 [Vercel Production](https://taiwan-weather-site.vercel.app)，Runtime 使用 Neon PostgreSQL；原始 SQLite 僅保留於本機作為遷移來源。同步入口具備 `CRON_SECRET`、Neon 租約鎖、資料驗證及 Transaction，Live 排程尚未啟用。
+> **Live 狀態（2026-09-22）**：網站已部署至 [Vercel Production](https://taiwan-weather-site.vercel.app)，Runtime 使用 Neon PostgreSQL；原始 SQLite 僅保留於本機作為遷移來源。GitHub Actions 每小時整點透過受保護的同步入口更新 CWA 快照。
 
 ---
 
@@ -18,7 +18,7 @@
 - 搜尋測站名稱或站號、依縣市篩選，並排序氣溫、雨量、濕度與風速。
 - 從右側資料表定位測站，地圖會移動至該位置並開啟詳細資訊視窗。
 
-> **資料更新狀態**：Live 網站目前從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；受保護的手動同步與失敗復原已驗證，Vercel 定時自動更新排程尚未啟用。
+> **資料更新狀態**：Live 網站從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；GitHub Actions 每小時整點觸發更新，同步失敗時會保留前一份有效快照。
 
 ---
 
@@ -34,6 +34,7 @@
   - 點擊表格內任一測站定位圖示，地圖將平滑飛至該測站並自動展開空間彈窗。
 - **全台氣象概況統計卡**：即時計算並展示在線測站總數、全台最高溫測站、全台最低溫測站、即時最大累積降雨測站與平均相對濕度。
 - **受保護的資料同步**：Server-to-Server `/api/refresh` 以 `CRON_SECRET`、Neon 租約鎖、資料驗證與 PostgreSQL Transaction 安全更新最新快照；前端不公開同步控制。
+- **每小時自動更新**：GitHub Actions 每小時整點呼叫正式站同步入口，並在 HTTP 或資料筆數異常時將工作標記為失敗。
 
 ---
 
@@ -127,7 +128,7 @@ npm run ops:status
 - [x] **Phase 2 — Database**：完成 876 筆 SQLite 原始資料驗證，並遷移至 Neon PostgreSQL 作為正式 Runtime 資料庫。
 - [x] **Phase 3 — Local Taiwan Web GIS**：完成 Next.js + Leaflet 台灣氣象地圖圖台、縣市界線、即時圖表與空間檢索。
 - [x] **Phase 4 — Git / GitHub**：版本控制建立，機敏檔案透過 `.gitignore` 嚴格保護，並推送至 GitHub 倉庫。
-- [x] **Phase 5 — Vercel Deployment**：Production 上線並連結 GitHub 自動部署；CWA Live 排程仍待設定。
+- [x] **Phase 5 — Vercel Deployment**：Production 上線並連結 GitHub 自動部署；GitHub Actions 每小時更新 CWA Live 資料。
 
 ---
 

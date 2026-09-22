@@ -1,0 +1,58 @@
+name: Sync CWA weather snapshot
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cwa-weather-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Refresh CWA data in Neon
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger protected production refresh
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          REFRESH_URL: https://taiwan-weather-site.vercel.app/api/refresh
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::GitHub secret CRON_SECRET is not configured"
+            exit 1
+          fi
+
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          http_code="$(curl \
+            --silent \
+            --show-error \
+            --max-time 90 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "$REFRESH_URL")"
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::CWA synchronization failed with HTTP ${http_code}"
+            exit 1
+          fi
+
+          node -e '
+            const fs = require("node:fs");
+            const result = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            if (result.success !== true || !Number.isInteger(result.count) || result.count < 500) {
+              console.error("::error::CWA synchronization returned an invalid result");
+              process.exit(1);
+            }
+            console.log(`CWA synchronization succeeded: ${result.count} stations`);
+          ' "$response_file"

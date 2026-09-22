@@ -7,7 +7,7 @@
 > **本地開發伺服器**：`http://localhost:3000`  
 > **Production**：<https://taiwan-weather-site.vercel.app>（`main` 自動部署）
 
-> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，並完成 CWA 資料驗證、Transaction 原子更新及同步結果紀錄。Live 排程尚未啟用。
+> **資料架構更新（2026-09-22）**：網站 Runtime 已完成 Neon PostgreSQL 遷移並移除 SQLite 程式依賴；`data/weather.db` 僅保留為未追蹤的原始遷移來源。`/api/refresh` 已使用 `CRON_SECRET` 與 Neon 租約鎖保護，並完成 CWA 資料驗證、Transaction 原子更新及同步結果紀錄。GitHub Actions 每小時整點觸發 Live 同步。
 
 ---
 
@@ -66,6 +66,8 @@
 
 ```text
 taiwan-weather-site/
+├── .github/workflows/
+│   └── sync-cwa.yml           # 每小時觸發 Production CWA → Neon 同步
 ├── .env                       # 機敏環境變數 (含 CWA_API_KEY，受 .gitignore 保護)
 ├── .env.example               # 開源環境變數範本
 ├── .gitignore                 # 版本控制忽略清單 (排除 node_modules, data/, *.db, .env 等)
