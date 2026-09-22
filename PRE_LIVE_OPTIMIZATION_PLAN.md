@@ -423,6 +423,7 @@ npm run build  → exit code 0
 - 無效 CWA Key 時 `/api/refresh` 回覆 502；失敗前後均為 876 筆且完整站號雜湊一致，證明上一份有效快照未被覆蓋。
 - 改回有效設定後同步回覆 200／876 筆；最新同步紀錄恢復 `success`、`error_code=null`。
 - Chromium 回歸 7／7：搜尋、排序、分頁、地圖定位 Popup、Stale、Error、Retry 全部通過。
+- 縣市 SVG 遮擋測站 Canvas 點擊問題已修正；縣市邊界開啟／關閉時皆可直接點擊測站顯示完整 Popup，並經使用者本機手動驗證通過。
 - `npm run ops:status` 回覆 healthy、876 筆、最新同步 success；README／HANDOVER／OPERATIONS 已完成現況一致性核對。
 
 **最低測試範圍**
@@ -556,6 +557,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-22 | 修正縣市邊界圖層攔截測站點擊；加入 12 px 鄰近測站判定並移除空白焦點框，Test／Lint／TypeScript／Build 與使用者手動測試均通過 | 使用者授權合併 `main` 並推送 GitHub |
 | 2026-09-22 | 完成 P1-05 最終 Test／Lint／TypeScript／Build、資料庫與 CWA 受控失敗保留、成功回復、UI 7／7、健康查詢及文件一致性驗證 | P1-05 完成；等待 Preview 確認與合併決策後進入 P1-06 |
 | 2026-09-22 | 安裝 Vercel GitHub App 並連結 `iloveu-tw/0921_TW_weather_site`；Production Branch 為 `main`，自動建立 Deployment 已啟用 | 後續 `main` Push 將自動部署 Production，其他分支／PR 建立 Preview |
 | 2026-09-22 | 將 P1-05 測試、健康查詢與維運文件備份至 `codex/p1-05-testing-ops`／`edf1711`；Preview Build Ready | P1-05 維持進行中，尚未合併至 `main` |

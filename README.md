@@ -6,6 +6,22 @@
 
 ---
 
+## 🖥️ Live Demo 與介面預覽
+
+### [▶ 開啟 Taiwan Weather GIS Live Demo](https://taiwan-weather-site.vercel.app)
+
+[![台灣即時氣象 GIS 觀測圖台預覽，包含全台測站地圖、氣象統計卡與詳細資料表](./public/taiwan-weather-dashboard.png)](https://taiwan-weather-site.vercel.app)
+
+進入網站後可以：
+
+- 在地圖上縮放台灣、切換底圖與縣市邊界，並點擊測站查看即時氣象資訊。
+- 搜尋測站名稱或站號、依縣市篩選，並排序氣溫、雨量、濕度與風速。
+- 從右側資料表定位測站，地圖會移動至該位置並開啟詳細資訊視窗。
+
+> **資料更新狀態**：Live 網站目前從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；受保護的手動同步與失敗復原已驗證，Vercel 定時自動更新排程尚未啟用。
+
+---
+
 ## 🌟 系統亮點與功能
 
 - **台灣 Web GIS 底圖圖台**：以 Leaflet.js 搭配 Esri 深色／衛星底圖及 OpenStreetMap，支援流暢平移、縮放與全島視野復位。

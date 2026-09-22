@@ -14,6 +14,8 @@ interface WeatherMapProps {
 type BaseMapType = 'esriDark' | 'osm' | 'satellite';
 type LeafletContainer = HTMLDivElement & { _leaflet_id?: number };
 
+const STATION_CLICK_TOLERANCE_PX = 12;
+
 function getTempColor(temp: number | null): string {
   if (temp === null) return '#64748b';
   if (temp >= 35) return '#ef4444';
@@ -100,6 +102,34 @@ export default function WeatherMap({
       markerRendererRef.current = L.canvas({ padding: 0.5 });
 
       mapInstanceRef.current = map;
+
+      // 縣市 SVG 位於測站 Canvas 上方時，改由地圖點擊位置補抓最近測站。
+      map.on('click', (event: L.LeafletMouseEvent) => {
+        if (event.sourceTarget instanceof L.CircleMarker) return;
+
+        const stationLayer = stationLayerRef.current;
+        if (!stationLayer || !map.hasLayer(stationLayer)) return;
+
+        const clickedPoint = map.latLngToContainerPoint(event.latlng);
+        let nearestMarker: L.CircleMarker | null = null;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+
+        for (const marker of markersRef.current.values()) {
+          const markerPoint = map.latLngToContainerPoint(marker.getLatLng());
+          const distance = clickedPoint.distanceTo(markerPoint);
+
+          if (distance < nearestDistance) {
+            nearestMarker = marker;
+            nearestDistance = distance;
+          }
+        }
+
+        if (nearestMarker && nearestDistance <= STATION_CLICK_TOLERANCE_PX) {
+          nearestMarker.openPopup();
+          nearestMarker.fire('click');
+        }
+      });
+
       setMapLoaded(true);
 
       // 載入台灣縣市邊界 GeoJSON
@@ -118,6 +148,7 @@ export default function WeatherMap({
               fillColor: '#0284c7',
               fillOpacity: 0.04,
               dashArray: '3, 4',
+              className: 'county-boundary-layer',
             },
             onEachFeature: (feature, layer) => {
               const countyName =
