@@ -6,7 +6,7 @@
 |---|---|
 | **服務狀態** | 🟢 [Vercel Production](https://taiwan-weather-site.vercel.app) |
 | **資料來源** | CWA Open Data |
-| **更新頻率** | GitHub Actions 每小時第 17 分鐘同步 |
+| **更新頻率** | GitHub Actions 排定每小時第 17 分鐘同步 |
 | **正式資料庫** | Neon Serverless PostgreSQL |
 | **Web GIS** | Next.js + Leaflet + GeoJSON |
 | **部署流程** | GitHub `main` → Vercel Production |
@@ -27,23 +27,25 @@
 - 搜尋測站名稱或站號、依縣市篩選，並排序氣溫、雨量、濕度與風速。
 - 從右側資料表定位測站，地圖會移動至該位置並開啟詳細資訊視窗。
 
-> **資料更新狀態**：Live 網站從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；GitHub Actions 每小時第 17 分鐘觸發更新，同步失敗時會保留前一份有效快照。
+> **資料更新狀態**：Live 網站從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；GitHub Actions 排定每小時第 17 分鐘觸發更新，實際開始時間可能受 GitHub 排程負載影響。同步失敗時會保留前一份有效快照。
 
 ---
 
 ## 🌟 系統亮點與功能
 
 - **台灣 Web GIS 底圖圖台**：以 Leaflet.js 搭配 Esri 深色／衛星底圖及 OpenStreetMap，支援流暢平移、縮放與全島視野復位。
-- **全台 800+ 氣象測站即時視覺化**：從 Neon PostgreSQL 讀取 876 座測站並精確定位，支援「**氣溫分布**」與「**降雨分布**」雙模式動態分色。
+- **全台 800+ 氣象測站即時視覺化**：從 Neon PostgreSQL 讀取最新 CWA 快照（目前約 876 座，實際數量以 API 回傳為準）並精確定位，支援「**氣溫分布**」與「**降雨分布**」雙模式動態分色。
 - **台灣 22 縣市行政區圖層**：疊加台灣縣市界線 GeoJSON 多邊形圖層，支援邊框發光、懸停高亮（Hover Highlight）與縣市名稱標籤。
 - **空間彈窗（Glassmorphism Popup）**：點擊任一測站標記即展開氣溫、雨量、相對濕度、風速與觀測時間之卡片。
 - **資料檢索與飛入定位（Fly-to Sync）**：
   - 支援關鍵字搜尋（測站名稱、站號）與縣市下拉式即時篩選。
-  - 支援氣溫、雨量、濕度升降冪排序。
+  - 支援測站名稱、氣溫、雨量、濕度與風速的全資料升降冪排序。
+  - 每頁顯示 15 筆，提供第一頁、上一頁、下一頁與最後一頁導覽。
   - 點擊表格內任一測站定位圖示，地圖將平滑飛至該測站並自動展開空間彈窗。
-- **全台氣象概況統計卡**：即時計算並展示在線測站總數、全台最高溫測站、全台最低溫測站、即時最大累積降雨測站與平均相對濕度。
+- **全台氣象概況統計卡**：即時計算並展示目前快照測站總數、全台最高溫測站、全台最低溫測站、即時最大累積降雨測站與平均相對濕度。
+- **無障礙與色覺友善**：提供鍵盤焦點、ARIA 狀態、Reduced Motion 支援，以及空心零雨量、虛線缺測值和文字標示圖例；測站 Popup 開啟時會自動隱藏圖例，避免遮擋資訊。
 - **受保護的資料同步**：Server-to-Server `/api/refresh` 以 `CRON_SECRET`、Neon 租約鎖、資料驗證與 PostgreSQL Transaction 安全更新最新快照；前端不公開同步控制。
-- **每小時自動更新**：GitHub Actions 每小時第 17 分鐘呼叫正式站同步入口，避開整點排程壅塞，並在 HTTP 或資料筆數異常時將工作標記為失敗。
+- **每小時自動更新**：GitHub Actions 排定每小時第 17 分鐘呼叫正式站同步入口，以降低整點排程壅塞風險，並在 HTTP 或資料筆數異常時將工作標記為失敗。
 
 ---
 
@@ -64,27 +66,28 @@
 ### 氣象資料同步
 
 ```text
-CWA Open Data → GitHub Actions → /api/refresh → 資料驗證 → Neon PostgreSQL → Web GIS
+GitHub Actions → /api/refresh → CWA Open Data → 資料驗證 → Neon PostgreSQL → /api/weather → Web GIS
 ```
 
-- GitHub Actions 每小時第 17 分鐘使用 `CRON_SECRET` 呼叫受保護的同步入口。
+- GitHub Actions 排定每小時第 17 分鐘使用 `CRON_SECRET` 呼叫受保護的同步入口；實際執行可能因平台負載略有延遲。
 - 系統驗證測站數量、站號唯一性、座標及觀測時間後，才以 Transaction 更新快照。
 - 同步失敗不會覆蓋既有資料，Live 網站會繼續提供上一份有效快照。
 
 ### 程式部署
 
 ```text
-Developer → Git Push → GitHub main → Vercel Build → Production
+Developer → Feature Branch → Pull Request + Vercel Preview → Merge main → Vercel Production
 ```
 
 資料同步與程式部署是兩條獨立流程；每小時更新氣象資料不會重新部署網站。
 
 ### Data Freshness
 
-- **同步頻率**：每小時第 17 分鐘觸發一次。
+- **同步頻率**：排定每小時第 17 分鐘觸發一次，實際執行時間以 GitHub Actions 紀錄為準。
 - **前端資料**：顯示 Neon 中最新成功同步的完整快照。
 - **失敗策略**：保留上一份有效資料，避免不完整資料取代正式快照。
 - **時間定義**：觀測時間以 CWA 回傳值為準，因此可能與目前時間不同。
+- **過期判定**：CWA 觀測時間距目前時間超過 120 分鐘時，前端會顯示「CWA 資料已過期」。
 
 ---
 
@@ -129,9 +132,9 @@ docs/architecture/    # 可驗證的系統流程圖規格
 
 ### 環境需求
 
-- Node.js 24（Production Build 與原生 TypeScript 測試已驗證）
-- CWA Open Data API Key
-- Neon PostgreSQL 連線字串與至少 32 字元的排程 Secret
+- Node.js 24（本專案 Production Build 與原生 TypeScript 測試的驗證版本）
+- `DATABASE_URL`：啟動網站並讀取 Neon 最新快照時必要
+- `CWA_API_KEY`、至少 32 字元的 `CRON_SECRET`：執行 `/api/refresh` 同步時必要
 
 ### 1. Clone Repository
 
@@ -172,6 +175,9 @@ npm run dev
 
 ```bash
 npm test
+npm run lint
+npx tsc --noEmit
+npm run build
 npm run ops:status
 ```
 
@@ -180,7 +186,7 @@ npm run ops:status
 - CWA Payload 正規化與缺測值轉換。
 - 測站數量、站號唯一性、座標及觀測時間驗證。
 - 120 分鐘資料新鮮度邊界。
-- 氣象統計、搜尋、縣市篩選、排序與分頁。
+- 氣象統計、搜尋、縣市篩選、全資料排序與分頁。
 
 同步故障判讀與 Neon 還原程序請見 [`OPERATIONS.md`](./OPERATIONS.md)。
 
@@ -190,7 +196,7 @@ npm run ops:status
 
 - [x] **Phase 1 — CWA API**：驗證中央氣象署 Open Data API 連線與資料解析。
 - [x] **Phase 2 — Database**：完成 876 筆 SQLite 原始資料驗證，並遷移至 Neon PostgreSQL 作為正式 Runtime 資料庫。
-- [x] **Phase 3 — Local Taiwan Web GIS**：完成 Next.js + Leaflet 台灣氣象地圖圖台、縣市界線、即時圖表與空間檢索。
+- [x] **Phase 3 — Local Taiwan Web GIS**：完成 Next.js + Leaflet 台灣氣象地圖圖台、縣市界線、氣象統計卡、測站資料表與空間檢索。
 - [x] **Phase 4 — Git / GitHub**：版本控制建立，機敏檔案透過 `.gitignore` 嚴格保護，並推送至 GitHub 倉庫。
 - [x] **Phase 5 — Vercel Deployment**：Production 上線並連結 GitHub 自動部署；GitHub Actions 每小時更新 CWA Live 資料。
 
