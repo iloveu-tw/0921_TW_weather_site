@@ -7,7 +7,17 @@ import {
   type WeatherSortField,
   type WeatherSortOrder,
 } from '@/lib/weather-view';
-import { ArrowUpDown, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  MapPin,
+  X,
+} from 'lucide-react';
 
 interface WeatherTableProps {
   stations: WeatherObservation[];
@@ -28,6 +38,8 @@ export default function WeatherTable({
   const [sortOrder, setSortOrder] = useState<WeatherSortOrder>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
+  const lastLocatedStationIdRef = useRef<string | null>(null);
+  const pendingScrollStationIdRef = useRef<string | null>(null);
   const pageSize = 15;
 
   const { filteredAndSorted: sortedStations, pageItems: paginatedStations, totalPages } =
@@ -67,39 +79,76 @@ export default function WeatherTable({
     return sortOrder === 'asc' ? 'ascending' : 'descending';
   };
 
+  const renderSortIcon = (field: WeatherSortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="sort-icon" aria-hidden="true" />;
+    }
+
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="sort-icon active" aria-hidden="true" />
+    ) : (
+      <ArrowDown className="sort-icon active" aria-hidden="true" />
+    );
+  };
+
   useEffect(() => {
-    if (!selectedStation) return;
+    if (!selectedStation) {
+      lastLocatedStationIdRef.current = null;
+      pendingScrollStationIdRef.current = null;
+      return;
+    }
+
+    if (lastLocatedStationIdRef.current === selectedStation.station_id) return;
+
+    lastLocatedStationIdRef.current = selectedStation.station_id;
+    pendingScrollStationIdRef.current = selectedStation.station_id;
+
+    const selectedIndex = sortedStations.findIndex(
+      (station) => station.station_id === selectedStation.station_id
+    );
+
+    if (selectedIndex === -1) return;
+
+    const selectedPage = Math.floor(selectedIndex / pageSize) + 1;
+    if (currentPage === selectedPage) return;
 
     const frame = window.requestAnimationFrame(() => {
-      const selectedIndex = sortedStations.findIndex(
-        (station) => station.station_id === selectedStation.station_id
-      );
+      setCurrentPage(selectedPage);
+    });
 
-      if (selectedIndex === -1) return;
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentPage, selectedStation, sortedStations]);
 
-      const selectedPage = Math.floor(selectedIndex / pageSize) + 1;
-      if (currentPage !== selectedPage) {
-        setCurrentPage(selectedPage);
-        return;
-      }
+  useEffect(() => {
+    const pendingStationId = pendingScrollStationIdRef.current;
+    if (!pendingStationId) return;
 
-      const row = rowRefs.current.get(selectedStation.station_id);
+    const frame = window.requestAnimationFrame(() => {
+      const row = rowRefs.current.get(pendingStationId);
+      if (!row) return;
+      const scrollContainer = row.closest<HTMLElement>('.table-scroll-container');
+      if (!scrollContainer) return;
+
       const reduceMotion = window.matchMedia(
         '(prefers-reduced-motion: reduce)'
       ).matches;
 
-      row?.scrollIntoView({
+      const rowRect = row.getBoundingClientRect();
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const centeredScrollTop =
+        scrollContainer.scrollTop +
+        rowRect.top -
+        containerRect.top -
+        (scrollContainer.clientHeight - rowRect.height) / 2;
+      scrollContainer.scrollTo({
+        top: Math.max(0, centeredScrollTop),
         behavior: reduceMotion ? 'auto' : 'smooth',
-        block: 'nearest',
       });
+      pendingScrollStationIdRef.current = null;
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [
-    currentPage,
-    selectedStation,
-    sortedStations,
-  ]);
+  }, [currentPage, paginatedStations, selectedStation]);
 
   return (
     <div className="table-card" id="weather-table-container">
@@ -112,31 +161,31 @@ export default function WeatherTable({
               <th className="sortable" aria-sort={getAriaSort('station_name')}>
                 <button className="th-sort-button" onClick={() => handleSort('station_name')}>
                   <span>測站資訊</span>
-                  <ArrowUpDown className="sort-icon" />
+                  {renderSortIcon('station_name')}
                 </button>
               </th>
               <th className="sortable text-right" aria-sort={getAriaSort('temperature')}>
                 <button className="th-sort-button right" onClick={() => handleSort('temperature')}>
                   <span>氣溫 (°C)</span>
-                  <ArrowUpDown className="sort-icon" />
+                  {renderSortIcon('temperature')}
                 </button>
               </th>
               <th className="sortable text-right" aria-sort={getAriaSort('rainfall')}>
                 <button className="th-sort-button right" onClick={() => handleSort('rainfall')}>
                   <span>降雨量 (mm)</span>
-                  <ArrowUpDown className="sort-icon" />
+                  {renderSortIcon('rainfall')}
                 </button>
               </th>
               <th className="sortable text-right" aria-sort={getAriaSort('humidity')}>
                 <button className="th-sort-button right" onClick={() => handleSort('humidity')}>
                   <span>濕度 (%)</span>
-                  <ArrowUpDown className="sort-icon" />
+                  {renderSortIcon('humidity')}
                 </button>
               </th>
               <th className="sortable text-right" aria-sort={getAriaSort('wind_speed')}>
                 <button className="th-sort-button right" onClick={() => handleSort('wind_speed')}>
                   <span>風速 (m/s)</span>
-                  <ArrowUpDown className="sort-icon" />
+                  {renderSortIcon('wind_speed')}
                 </button>
               </th>
               <th className="text-center">地圖定位</th>
@@ -226,12 +275,23 @@ export default function WeatherTable({
         </span>
         <div className="pagination-buttons">
           <button
+            id="btn-first-page"
+            className="btn-page"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            aria-label="前往第一頁"
+          >
+            <ChevronsLeft className="page-icon" aria-hidden="true" />
+            <span>第一頁</span>
+          </button>
+          <button
             id="btn-prev-page"
             className="btn-page"
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage === 1}
+            aria-label="前往上一頁"
           >
-            <ChevronLeft className="page-icon" />
+            <ChevronLeft className="page-icon" aria-hidden="true" />
             <span>上一頁</span>
           </button>
           <button
@@ -239,9 +299,20 @@ export default function WeatherTable({
             className="btn-page"
             onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
             disabled={currentPage === totalPages}
+            aria-label="前往下一頁"
           >
             <span>下一頁</span>
-            <ChevronRight className="page-icon" />
+            <ChevronRight className="page-icon" aria-hidden="true" />
+          </button>
+          <button
+            id="btn-last-page"
+            className="btn-page"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            aria-label="前往最後一頁"
+          >
+            <span>最後一頁</span>
+            <ChevronsRight className="page-icon" aria-hidden="true" />
           </button>
         </div>
       </div>
