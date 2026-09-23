@@ -2,7 +2,16 @@
 
 > 以交通部中央氣象署（CWA）Open Data 為資料來源，建立可儲存氣象資料、在台灣 GIS 地圖上空間視覺化，並具備自動部署能力之全端 Web GIS 專案。
 
-> **Live 狀態（2026-09-22）**：網站已部署至 [Vercel Production](https://taiwan-weather-site.vercel.app)，Runtime 使用 Neon PostgreSQL；原始 SQLite 僅保留於本機作為遷移來源。GitHub Actions 每小時整點透過受保護的同步入口更新 CWA 快照。
+| 項目 | 目前狀態 |
+|---|---|
+| **服務狀態** | 🟢 [Vercel Production](https://taiwan-weather-site.vercel.app) |
+| **資料來源** | CWA Open Data |
+| **更新頻率** | GitHub Actions 每小時整點同步 |
+| **正式資料庫** | Neon Serverless PostgreSQL |
+| **Web GIS** | Next.js + Leaflet + GeoJSON |
+| **部署流程** | GitHub `main` → Vercel Production |
+
+> 原始 SQLite 僅保留於本機作為遷移來源，Live Runtime 不再讀取 SQLite。
 
 ---
 
@@ -50,6 +59,35 @@
 
 ---
 
+## 🔄 自動化工作流程與資料新鮮度
+
+### 氣象資料同步
+
+```text
+CWA Open Data → GitHub Actions → /api/refresh → 資料驗證 → Neon PostgreSQL → Web GIS
+```
+
+- GitHub Actions 每小時整點使用 `CRON_SECRET` 呼叫受保護的同步入口。
+- 系統驗證測站數量、站號唯一性、座標及觀測時間後，才以 Transaction 更新快照。
+- 同步失敗不會覆蓋既有資料，Live 網站會繼續提供上一份有效快照。
+
+### 程式部署
+
+```text
+Developer → Git Push → GitHub main → Vercel Build → Production
+```
+
+資料同步與程式部署是兩條獨立流程；每小時更新氣象資料不會重新部署網站。
+
+### Data Freshness
+
+- **同步頻率**：每小時整點觸發一次。
+- **前端資料**：顯示 Neon 中最新成功同步的完整快照。
+- **失敗策略**：保留上一份有效資料，避免不完整資料取代正式快照。
+- **時間定義**：觀測時間以 CWA 回傳值為準，因此可能與目前時間不同。
+
+---
+
 ## 🛠️ 技術堆疊
 
 - **前端框架**：Next.js 16 (Turbopack, App Router) + TypeScript + React 19
@@ -61,25 +99,68 @@
 
 ---
 
+## 🔌 API Routes
+
+| Route | Method | 用途 | 存取方式 |
+|---|---|---|---|
+| `/api/weather` | `GET` | 取得最新成功同步的氣象快照與新鮮度資訊 | Public |
+| `/api/refresh` | `GET` / `POST` | 從 CWA 同步、驗證並更新 Neon 快照 | Bearer `CRON_SECRET` |
+
+`/api/refresh` 僅供 Server-to-Server 排程使用，不應從瀏覽器前端呼叫或公開 Secret。
+
+---
+
+## 📁 專案結構
+
+```text
+app/                  # Next.js 頁面與 API Route Handlers
+components/           # 地圖、統計卡、資料表與頁首元件
+lib/                  # CWA 同步、驗證、資料庫與畫面資料邏輯
+database/             # PostgreSQL Schema 與 Migration
+tests/                # Node.js 核心行為測試
+public/geo/            # 台灣縣市邊界 GeoJSON
+scripts/              # 維運狀態檢查與本機輔助工具
+docs/architecture/    # 可驗證的系統流程圖規格
+```
+
+---
+
 ## 🚀 本地快速啟動
 
-### 1. 環境需求
+### 環境需求
+
 - Node.js 24（Production Build 與原生 TypeScript 測試已驗證）
 - CWA Open Data API Key
 - Neon PostgreSQL 連線字串與至少 32 字元的排程 Secret
 
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/iloveu-tw/0921_TW_weather_site.git
+cd 0921_TW_weather_site
+```
+
 ### 2. 安裝依賴套件
+
 ```bash
 npm install
 ```
 
 ### 3. 配置環境變數
-在專案根目錄建立 `.env` 檔案：
+
+從安全範本建立本機 `.env`，再填入自己的機密值：
+
+```bash
+cp .env.example .env
+```
+
 ```env
 CWA_API_KEY=your_cwa_api_key_here
 DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 CRON_SECRET=replace_with_a_random_secret_at_least_32_characters
 ```
+
+`.env.example` 可提交至版本庫；`.env` 包含真實機密資訊，已由 `.gitignore` 排除，請勿 Commit。
 
 ### 4. 啟動 Web GIS 伺服器
 ```bash
@@ -94,11 +175,18 @@ npm test
 npm run ops:status
 ```
 
+`npm test` 主要驗證：
+
+- CWA Payload 正規化與缺測值轉換。
+- 測站數量、站號唯一性、座標及觀測時間驗證。
+- 120 分鐘資料新鮮度邊界。
+- 氣象統計、搜尋、縣市篩選、排序與分頁。
+
 同步故障判讀與 Neon 還原程序請見 [`OPERATIONS.md`](./OPERATIONS.md)。
 
 ---
 
-## 📅 專案開發階段里程碑 (Progress)
+## 📅 專案實作里程碑
 
 - [x] **Phase 1 — CWA API**：驗證中央氣象署 Open Data API 連線與資料解析。
 - [x] **Phase 2 — Database**：完成 876 筆 SQLite 原始資料驗證，並遷移至 Neon PostgreSQL 作為正式 Runtime 資料庫。
@@ -108,5 +196,9 @@ npm run ops:status
 
 ---
 
-## 📄 授權與宣告
-本專案為 AIoT DIC-2 教學專案。氣象原始觀測資料來源為「交通部中央氣象署政府資料開放平台」。
+## 🌦️ 資料來源與使用宣告
+
+- 本專案為 AIoT DIC-2 教學專案。
+- 氣象原始觀測資料來源：[交通部中央氣象署政府資料開放平台](https://opendata.cwa.gov.tw/)。
+- 本專案為第三方教學實作，並非交通部中央氣象署官方產品。
+- Repository 目前未提供獨立的開源授權檔；程式碼使用與再散布條件應由專案維護者另行決定。
