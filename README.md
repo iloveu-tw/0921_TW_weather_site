@@ -6,7 +6,7 @@
 |---|---|
 | **服務狀態** | 🟢 [Vercel Production](https://taiwan-weather-site.vercel.app) |
 | **資料來源** | CWA Open Data |
-| **更新頻率** | GitHub Actions 每小時整點同步 |
+| **更新頻率** | GitHub Actions 每小時第 17 分鐘同步 |
 | **正式資料庫** | Neon Serverless PostgreSQL |
 | **Web GIS** | Next.js + Leaflet + GeoJSON |
 | **部署流程** | GitHub `main` → Vercel Production |
@@ -27,7 +27,7 @@
 - 搜尋測站名稱或站號、依縣市篩選，並排序氣溫、雨量、濕度與風速。
 - 從右側資料表定位測站，地圖會移動至該位置並開啟詳細資訊視窗。
 
-> **資料更新狀態**：Live 網站從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；GitHub Actions 每小時整點觸發更新，同步失敗時會保留前一份有效快照。
+> **資料更新狀態**：Live 網站從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；GitHub Actions 每小時第 17 分鐘觸發更新，同步失敗時會保留前一份有效快照。
 
 ---
 
@@ -43,7 +43,7 @@
   - 點擊表格內任一測站定位圖示，地圖將平滑飛至該測站並自動展開空間彈窗。
 - **全台氣象概況統計卡**：即時計算並展示在線測站總數、全台最高溫測站、全台最低溫測站、即時最大累積降雨測站與平均相對濕度。
 - **受保護的資料同步**：Server-to-Server `/api/refresh` 以 `CRON_SECRET`、Neon 租約鎖、資料驗證與 PostgreSQL Transaction 安全更新最新快照；前端不公開同步控制。
-- **每小時自動更新**：GitHub Actions 每小時整點呼叫正式站同步入口，並在 HTTP 或資料筆數異常時將工作標記為失敗。
+- **每小時自動更新**：GitHub Actions 每小時第 17 分鐘呼叫正式站同步入口，避開整點排程壅塞，並在 HTTP 或資料筆數異常時將工作標記為失敗。
 
 ---
 
@@ -67,7 +67,7 @@
 CWA Open Data → GitHub Actions → /api/refresh → 資料驗證 → Neon PostgreSQL → Web GIS
 ```
 
-- GitHub Actions 每小時整點使用 `CRON_SECRET` 呼叫受保護的同步入口。
+- GitHub Actions 每小時第 17 分鐘使用 `CRON_SECRET` 呼叫受保護的同步入口。
 - 系統驗證測站數量、站號唯一性、座標及觀測時間後，才以 Transaction 更新快照。
 - 同步失敗不會覆蓋既有資料，Live 網站會繼續提供上一份有效快照。
 
@@ -81,7 +81,7 @@ Developer → Git Push → GitHub main → Vercel Build → Production
 
 ### Data Freshness
 
-- **同步頻率**：每小時整點觸發一次。
+- **同步頻率**：每小時第 17 分鐘觸發一次。
 - **前端資料**：顯示 Neon 中最新成功同步的完整快照。
 - **失敗策略**：保留上一份有效資料，避免不完整資料取代正式快照。
 - **時間定義**：觀測時間以 CWA 回傳值為準，因此可能與目前時間不同。

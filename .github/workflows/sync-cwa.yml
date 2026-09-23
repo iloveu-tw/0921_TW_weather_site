@@ -2,7 +2,7 @@ name: Sync CWA weather snapshot
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:

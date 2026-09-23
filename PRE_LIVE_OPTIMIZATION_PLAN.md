@@ -557,6 +557,7 @@ Live 發布
 
 | 日期 | 變更內容 | 進度影響 |
 |---|---|---|
+| 2026-09-23 | GitHub Actions CWA 排程由每小時整點調整為每小時第 17 分鐘，避開 GitHub Actions 整點排程壅塞；同步端點、驗證條件與手動觸發方式不變 | 8／8 Test、Lint、TypeScript、Production Build 與差異檢查通過；等待 PR Preview 驗證 |
 | 2026-09-22 | 新增 GitHub Actions 每小時 CWA → Neon 排程、單工 concurrency、HTTP 與筆數成功條件；GitHub `CRON_SECRET` 已安全設定；[首次手動執行](https://github.com/iloveu-tw/0921_TW_weather_site/actions/runs/35695727766) 成功同步 876 筆 | 排程端到端驗證完成；Neon 健康狀態正常，Vercel Production 部署成功 |
 | 2026-09-22 | 修正縣市邊界圖層攔截測站點擊；加入 12 px 鄰近測站判定並移除空白焦點框，Test／Lint／TypeScript／Build 與使用者手動測試均通過 | 使用者授權合併 `main` 並推送 GitHub |
 | 2026-09-22 | 完成 P1-05 最終 Test／Lint／TypeScript／Build、資料庫與 CWA 受控失敗保留、成功回復、UI 7／7、健康查詢及文件一致性驗證 | P1-05 完成；等待 Preview 確認與合併決策後進入 P1-06 |
@@ -590,7 +591,7 @@ Live 發布
 - 備份分支：`codex/p1-05-testing-ops`，遠端 HEAD 為 `ff9bcbb`。
 - 使用者已手動確認地圖修正；Vercel Production Deployment 與 GitHub Actions 每小時同步均已驗證成功。
 - Vercel 已連結 GitHub Repository `iloveu-tw/0921_TW_weather_site`，Production Branch 為 `main`；Preview／Production 已設定 `DATABASE_URL`、`CWA_API_KEY`、`CRON_SECRET`，文件不保存實際值。
-- GitHub Actions `CRON_SECRET` 已設定；每小時整點排程已啟用，首次手動執行成功同步 876 筆。
+- GitHub Actions `CRON_SECRET` 已設定；每小時第 17 分鐘排程等待本次 PR 合併後生效，首次手動執行曾成功同步 876 筆。
 
 ### 續作順序
 
