@@ -8,6 +8,24 @@ export type WeatherSortField =
   | 'wind_speed';
 export type WeatherSortOrder = 'asc' | 'desc';
 
+export function filterWeatherStations(
+  stations: WeatherObservation[],
+  options: { searchTerm: string; county: string }
+) {
+  const normalizedSearch = options.searchTerm.trim().toLocaleLowerCase('zh-Hant');
+
+  return stations.filter((station) => {
+    const matchesSearch =
+      normalizedSearch === '' ||
+      station.station_name.toLocaleLowerCase('zh-Hant').includes(normalizedSearch) ||
+      station.station_id.toLocaleLowerCase('zh-Hant').includes(normalizedSearch);
+    const matchesCounty =
+      options.county === 'all' || station.county === options.county;
+
+    return matchesSearch && matchesCounty;
+  });
+}
+
 export function summarizeWeather(data: WeatherObservation[]) {
   const validTemp = data.filter((item) => item.temperature !== null);
   const validRain = data.filter((item) => item.rainfall !== null);
@@ -56,16 +74,7 @@ export function filterSortAndPaginateWeather(
     pageSize: number;
   }
 ) {
-  const normalizedSearch = options.searchTerm.trim().toLocaleLowerCase('zh-Hant');
-  const filtered = stations.filter((station) => {
-    const matchesSearch =
-      normalizedSearch === '' ||
-      station.station_name.toLocaleLowerCase('zh-Hant').includes(normalizedSearch) ||
-      station.station_id.toLocaleLowerCase('zh-Hant').includes(normalizedSearch);
-    const matchesCounty =
-      options.county === 'all' || station.county === options.county;
-    return matchesSearch && matchesCounty;
-  });
+  const filtered = filterWeatherStations(stations, options);
 
   const sorted = [...filtered].sort((left, right) => {
     const leftValue = left[options.sortField];

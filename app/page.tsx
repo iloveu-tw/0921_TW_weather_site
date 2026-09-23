@@ -1,11 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Header from '@/components/Header';
+import WeatherFilters from '@/components/WeatherFilters';
 import WeatherStats from '@/components/WeatherStats';
 import WeatherTable from '@/components/WeatherTable';
-import { WeatherApiResponse, WeatherObservation } from '@/types/weather';
+import {
+  WeatherApiResponse,
+  WeatherMetricMode,
+  WeatherObservation,
+} from '@/types/weather';
+import { filterWeatherStations } from '@/lib/weather-view';
 import { Loader2 } from 'lucide-react';
 
 // 動態載入 Leaflet 地圖
@@ -38,6 +44,22 @@ export default function HomePage() {
   const [isStale, setIsStale] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [metricMode, setMetricMode] = useState<WeatherMetricMode>('temp');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCounty, setSelectedCounty] = useState('all');
+
+  const counties = useMemo(
+    () => [...new Set(stations.map((station) => station.county))].sort(),
+    [stations]
+  );
+  const visibleStations = useMemo(
+    () =>
+      filterWeatherStations(stations, {
+        searchTerm,
+        county: selectedCounty,
+      }),
+    [stations, searchTerm, selectedCounty]
+  );
 
   useEffect(() => {
     let active = true;
@@ -88,6 +110,37 @@ export default function HomePage() {
     }
   };
 
+  const handleSearchTermChange = (value: string) => {
+    setSearchTerm(value);
+    if (
+      selectedStation &&
+      filterWeatherStations([selectedStation], {
+        searchTerm: value,
+        county: selectedCounty,
+      }).length === 0
+    ) {
+      setSelectedStation(null);
+    }
+  };
+
+  const handleCountyChange = (county: string) => {
+    setSelectedCounty(county);
+    if (
+      selectedStation &&
+      filterWeatherStations([selectedStation], {
+        searchTerm,
+        county,
+      }).length === 0
+    ) {
+      setSelectedStation(null);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedCounty('all');
+  };
+
   return (
     <div className="app-container">
       {/* 頂部標題列 */}
@@ -95,6 +148,7 @@ export default function HomePage() {
         observationTime={observationTime}
         syncedAt={syncedAt}
         isStale={isStale}
+        metricMode={metricMode}
       />
 
       {/* 載入與錯誤狀態 */}
@@ -128,6 +182,17 @@ export default function HomePage() {
         {/* 關鍵氣象指標統計卡 */}
         <WeatherStats data={stations} />
 
+        <WeatherFilters
+          counties={counties}
+          searchTerm={searchTerm}
+          selectedCounty={selectedCounty}
+          visibleCount={visibleStations.length}
+          totalCount={stations.length}
+          onSearchTermChange={handleSearchTermChange}
+          onCountyChange={handleCountyChange}
+          onClear={handleClearFilters}
+        />
+
         {/* GIS 地圖與氣象資料表分割視窗 */}
         <div className="gis-dashboard-layout">
           {/* 左側 / 上側：Web GIS 互動地圖 */}
@@ -141,9 +206,11 @@ export default function HomePage() {
             </div>
             <div className="map-outer-card">
               <WeatherMap
-                stations={stations}
+                stations={visibleStations}
                 selectedStation={selectedStation}
                 onSelectStation={setSelectedStation}
+                metricMode={metricMode}
+                onMetricModeChange={setMetricMode}
               />
             </div>
           </section>
@@ -158,9 +225,11 @@ export default function HomePage() {
               <span className="section-badge alt">互動檢索</span>
             </div>
             <WeatherTable
-              stations={stations}
+              stations={visibleStations}
               selectedStation={selectedStation}
               onSelectStation={setSelectedStation}
+              filterKey={`${searchTerm}\u0000${selectedCounty}`}
+              onClearFilters={handleClearFilters}
             />
           </section>
         </div>

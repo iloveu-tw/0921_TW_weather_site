@@ -7,9 +7,14 @@ import {
 } from '../lib/weather-validation.ts';
 import { isWeatherObservationStale } from '../lib/weather-freshness.ts';
 import {
+  filterWeatherStations,
   filterSortAndPaginateWeather,
   summarizeWeather,
 } from '../lib/weather-view.ts';
+import {
+  getRainfallBand,
+  getTemperatureBand,
+} from '../lib/weather-map-scale.ts';
 
 const NOW = Date.parse('2026-09-22T02:00:00.000Z');
 
@@ -157,4 +162,41 @@ test('搜尋、縣市精確篩選、排序與分頁可重複驗證', () => {
   });
   assert.deepEqual(paged.filteredAndSorted.map((item) => item.station_id), ['B01', 'A01', 'A02']);
   assert.deepEqual(paged.pageItems.map((item) => item.station_id), ['A02']);
+});
+
+test('共用 GIS 篩選同時支援站名、站號與縣市', () => {
+  const stations = [
+    observation(1, { station_id: 'A01', station_name: '臺北', county: '臺北市' }),
+    observation(2, { station_id: 'A02', station_name: '淡水', county: '新北市' }),
+    observation(3, { station_id: 'B01', station_name: '板橋', county: '新北市' }),
+  ];
+
+  assert.deepEqual(
+    filterWeatherStations(stations, { searchTerm: 'B01', county: '新北市' }).map(
+      (station) => station.station_id
+    ),
+    ['B01']
+  );
+  assert.deepEqual(
+    filterWeatherStations(stations, { searchTerm: '淡水', county: 'all' }).map(
+      (station) => station.station_id
+    ),
+    ['A02']
+  );
+});
+
+test('地圖氣溫與雨量色階在所有邊界值保持一致', () => {
+  assert.equal(getTemperatureBand(null).key, 'no-data');
+  assert.equal(getTemperatureBand(14.9).key, 'temp-under-15');
+  assert.equal(getTemperatureBand(15).key, 'temp-15-20');
+  assert.equal(getTemperatureBand(35).key, 'temp-35-up');
+
+  assert.equal(getRainfallBand(null).key, 'no-data');
+  assert.equal(getRainfallBand(-1).key, 'no-data');
+  assert.equal(getRainfallBand(0).key, 'rain-zero');
+  assert.equal(getRainfallBand(0.1).key, 'rain-under-2');
+  assert.equal(getRainfallBand(2).key, 'rain-2-10');
+  assert.equal(getRainfallBand(10).key, 'rain-10-30');
+  assert.equal(getRainfallBand(30).key, 'rain-30-50');
+  assert.equal(getRainfallBand(50).key, 'rain-50-up');
 });

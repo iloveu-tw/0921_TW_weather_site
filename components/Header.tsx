@@ -2,11 +2,13 @@
 
 import React from 'react';
 import { MapPin, Database } from 'lucide-react';
+import { WeatherMetricMode } from '@/types/weather';
 
 interface HeaderProps {
   observationTime: string;
   syncedAt: string;
   isStale: boolean;
+  metricMode: WeatherMetricMode;
 }
 
 function formatTime(value: string): string {
@@ -26,6 +28,7 @@ export default function Header({
   observationTime,
   syncedAt,
   isStale,
+  metricMode,
 }: HeaderProps) {
   const formattedObservationTime = formatTime(observationTime);
   const formattedSyncTime = formatTime(syncedAt);
@@ -46,7 +49,9 @@ export default function Header({
           >
             <span className="badge-pulse"></span>
             <span>{isStale ? 'CWA 資料已過期' : 'CWA 資料為最新狀態'}</span>
-            <span className="badge-pill">Phase 3 Web GIS</span>
+            <span className="badge-pill">
+              目前顯示：{metricMode === 'temp' ? '氣溫分布' : '雨量分布'}
+            </span>
           </div>
           <h1 className="brand-title">台灣即時氣象 GIS 觀測圖台</h1>
           <p className="brand-subtitle">
