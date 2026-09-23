@@ -1,7 +1,15 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { WeatherObservation } from '@/types/weather';
+import { WeatherMetricMode, WeatherObservation } from '@/types/weather';
+import {
+  getRainfallBand,
+  getTemperatureBand,
+  NO_DATA_BAND,
+  NO_RAIN_BAND,
+  RAINFALL_SCALE,
+  TEMPERATURE_SCALE,
+} from '@/lib/weather-map-scale';
 import { Layers, Eye, Compass, CloudRain, Sun, Moon, Map as MapIcon, Globe } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
@@ -9,6 +17,8 @@ interface WeatherMapProps {
   stations: WeatherObservation[];
   selectedStation: WeatherObservation | null;
   onSelectStation: (station: WeatherObservation) => void;
+  metricMode: WeatherMetricMode;
+  onMetricModeChange: (mode: WeatherMetricMode) => void;
 }
 
 type BaseMapType = 'esriDark' | 'osm' | 'satellite';
@@ -16,24 +26,16 @@ type LeafletContainer = HTMLDivElement & { _leaflet_id?: number };
 
 const STATION_CLICK_TOLERANCE_PX = 12;
 
-function getTempColor(temp: number | null): string {
-  if (temp === null) return '#64748b';
-  if (temp >= 35) return '#ef4444';
-  if (temp >= 30) return '#f97316';
-  if (temp >= 25) return '#eab308';
-  if (temp >= 20) return '#10b981';
-  if (temp >= 15) return '#06b6d4';
-  return '#3b82f6';
-}
+function getMarkerStyleForZoom(zoom: number) {
+  if (zoom < 8) {
+    return { radius: 3, weight: 0.8, opacity: 0.7, fillOpacity: 0.55 };
+  }
 
-function getRainColor(rain: number | null): string {
-  if (rain === null || rain < 0) return '#64748b';
-  if (rain === 0) return '#334155';
-  if (rain < 2) return '#38bdf8';
-  if (rain < 10) return '#0284c7';
-  if (rain < 30) return '#2563eb';
-  if (rain < 50) return '#f59e0b';
-  return '#dc2626';
+  if (zoom < 10) {
+    return { radius: 5, weight: 1, opacity: 0.82, fillOpacity: 0.72 };
+  }
+
+  return { radius: 7, weight: 1.5, opacity: 0.9, fillOpacity: 0.85 };
 }
 
 function escapeHtml(value: string): string {
@@ -49,10 +51,82 @@ function escapeHtml(value: string): string {
   });
 }
 
+function formatPopupTime(value: string): string {
+  if (!value) return '--';
+
+  return new Date(value).toLocaleString('zh-TW', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function buildPopupContent(
+  station: WeatherObservation,
+  metricMode: WeatherMetricMode
+): string {
+  const tempText =
+    station.temperature !== null ? `${station.temperature.toFixed(1)}°C` : '--';
+  const rainText =
+    station.rainfall !== null ? `${station.rainfall.toFixed(1)} mm` : '--';
+  const humidText = station.humidity !== null ? `${station.humidity}%` : '--';
+  const windText =
+    station.wind_speed !== null ? `${station.wind_speed.toFixed(1)} m/s` : '--';
+  const isTemperature = metricMode === 'temp';
+  const primaryValue = isTemperature ? tempText : rainText;
+  const primaryLabel = isTemperature ? '目前氣溫' : '目前累積雨量';
+  const primaryColor = isTemperature
+    ? getTemperatureBand(station.temperature).color
+    : getRainfallBand(station.rainfall).color;
+  const secondaryMetric = isTemperature
+    ? { label: '累積雨量', value: rainText }
+    : { label: '目前氣溫', value: tempText };
+
+  return `
+    <div class="custom-popup-card">
+      <div class="popup-header">
+        <div class="popup-title-group">
+          <span class="popup-station-badge">${escapeHtml(station.station_id)}</span>
+          <h4 class="popup-station-name">${escapeHtml(station.station_name)}</h4>
+        </div>
+      </div>
+
+      <div class="popup-primary" style="border-color: ${primaryColor}55;">
+        <span class="popup-primary-value" style="color: ${primaryColor};">${primaryValue}</span>
+        <span class="popup-primary-label">${primaryLabel}</span>
+      </div>
+
+      <div class="popup-body popup-secondary-grid">
+        <div class="popup-metric">
+          <span class="metric-name">${secondaryMetric.label}</span>
+          <span class="metric-val">${secondaryMetric.value}</span>
+        </div>
+        <div class="popup-metric">
+          <span class="metric-name">相對濕度</span>
+          <span class="metric-val">${humidText}</span>
+        </div>
+        <div class="popup-metric">
+          <span class="metric-name">觀測風速</span>
+          <span class="metric-val">${windText}</span>
+        </div>
+      </div>
+
+      <div class="popup-footer">
+        <span>CWA 觀測時間：${escapeHtml(formatPopupTime(station.observation_time))}</span>
+        <span>座標：${station.latitude.toFixed(2)}°N, ${station.longitude.toFixed(2)}°E</span>
+      </div>
+    </div>
+  `;
+}
+
 export default function WeatherMap({
   stations,
   selectedStation,
   onSelectStation,
+  metricMode,
+  onMetricModeChange,
 }: WeatherMapProps) {
   const mapContainerRef = useRef<LeafletContainer>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -64,7 +138,6 @@ export default function WeatherMap({
   const showCountiesRef = useRef<boolean>(true);
 
   const [baseMap, setBaseMap] = useState<BaseMapType>('esriDark');
-  const [metricMode, setMetricMode] = useState<'temp' | 'rain'>('temp');
   const [showCounties, setShowCounties] = useState<boolean>(true);
   const [showStations, setShowStations] = useState<boolean>(true);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
@@ -102,6 +175,18 @@ export default function WeatherMap({
       markerRendererRef.current = L.canvas({ padding: 0.5 });
 
       mapInstanceRef.current = map;
+
+      map.on('zoomend', () => {
+        const style = getMarkerStyleForZoom(map.getZoom());
+        markersRef.current.forEach((marker) => {
+          marker.setRadius(style.radius);
+          marker.setStyle({
+            weight: style.weight,
+            opacity: style.opacity,
+            fillOpacity: style.fillOpacity,
+          });
+        });
+      });
 
       // 縣市 SVG 位於測站 Canvas 上方時，改由地圖點擊位置補抓最近測站。
       map.on('click', (event: L.LeafletMouseEvent) => {
@@ -289,71 +374,22 @@ export default function WeatherMap({
       stations.forEach((station) => {
         if (!station.latitude || !station.longitude) return;
 
-        const color = getTempColor(station.temperature);
-
-        const tempText =
-          station.temperature !== null
-            ? `${station.temperature.toFixed(1)}°`
-            : 'N/A';
-        const rainText =
-          station.rainfall !== null ? `${station.rainfall.toFixed(1)} mm` : '--';
-        const humidText =
-          station.humidity !== null ? `${station.humidity}%` : '--';
-        const windText =
-          station.wind_speed !== null
-            ? `${station.wind_speed.toFixed(1)} m/s`
-            : '--';
+        const color = getTemperatureBand(station.temperature).color;
+        const markerStyle = getMarkerStyleForZoom(
+          mapInstanceRef.current?.getZoom() ?? 7.5
+        );
 
         const marker = L.circleMarker([station.latitude, station.longitude], {
           renderer,
-          radius: 7,
+          radius: markerStyle.radius,
           fillColor: color,
           color: '#ffffff',
-          weight: 1.5,
-          opacity: 0.9,
-          fillOpacity: 0.85,
+          weight: markerStyle.weight,
+          opacity: markerStyle.opacity,
+          fillOpacity: markerStyle.fillOpacity,
         });
 
-        // 彈跳視窗內容
-        const popupContent = `
-          <div class="custom-popup-card">
-            <div class="popup-header">
-              <div class="popup-title-group">
-                <span class="popup-station-badge">${escapeHtml(station.station_id)}</span>
-                <h4 class="popup-station-name">${escapeHtml(station.station_name)}</h4>
-              </div>
-              <span class="popup-temp-badge" style="background: ${color}25; color: ${color}; border-color: ${color}50;">
-                ${tempText}
-              </span>
-            </div>
-            
-            <div class="popup-body">
-              <div class="popup-metric">
-                <span class="metric-name">即時氣溫</span>
-                <span class="metric-val highlight">${tempText}</span>
-              </div>
-              <div class="popup-metric">
-                <span class="metric-name">當前累積雨量</span>
-                <span class="metric-val">${rainText}</span>
-              </div>
-              <div class="popup-metric">
-                <span class="metric-name">相對濕度</span>
-                <span class="metric-val">${humidText}</span>
-              </div>
-              <div class="popup-metric">
-                <span class="metric-name">觀測風速</span>
-                <span class="metric-val">${windText}</span>
-              </div>
-            </div>
-
-            <div class="popup-footer">
-              <span>座標: ${station.latitude.toFixed(2)}°N, ${station.longitude.toFixed(2)}°E</span>
-              <span>${escapeHtml(station.observation_time ? station.observation_time.replace('T', ' ').substring(0, 19) : '')}</span>
-            </div>
-          </div>
-        `;
-
-        marker.bindPopup(popupContent, {
+        marker.bindPopup(buildPopupContent(station, 'temp'), {
           className: 'glass-popup',
           closeButton: true,
           offset: [0, -6],
@@ -381,9 +417,10 @@ export default function WeatherMap({
       marker.setStyle({
         fillColor:
           metricMode === 'temp'
-            ? getTempColor(station.temperature)
-            : getRainColor(station.rainfall),
+            ? getTemperatureBand(station.temperature).color
+            : getRainfallBand(station.rainfall).color,
       });
+      marker.setPopupContent(buildPopupContent(station, metricMode));
     });
   }, [stations, metricMode]);
 
@@ -436,7 +473,7 @@ export default function WeatherMap({
       <div className="map-toolbar">
         <div className="toolbar-group">
           {/* 底圖圖資切換 */}
-          <div className="toolbar-metric-switch">
+          <div className="toolbar-metric-switch basemap-switch">
             <button
               id="btn-basemap-dark"
               className={`metric-btn ${baseMap === 'esriDark' ? 'active' : ''}`}
@@ -475,7 +512,7 @@ export default function WeatherMap({
               id="btn-metric-temp"
               className={`metric-btn ${metricMode === 'temp' ? 'active' : ''}`}
               aria-pressed={metricMode === 'temp'}
-              onClick={() => setMetricMode('temp')}
+              onClick={() => onMetricModeChange('temp')}
               title="以氣溫著色"
             >
               <Sun className="btn-icon" />
@@ -485,7 +522,7 @@ export default function WeatherMap({
               id="btn-metric-rain"
               className={`metric-btn ${metricMode === 'rain' ? 'active' : ''}`}
               aria-pressed={metricMode === 'rain'}
-              onClick={() => setMetricMode('rain')}
+              onClick={() => onMetricModeChange('rain')}
               title="以雨量著色"
             >
               <CloudRain className="btn-icon" />
@@ -538,22 +575,19 @@ export default function WeatherMap({
         </span>
         <div className="legend-items">
           {metricMode === 'temp' ? (
-            <>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#ef4444' }}></span>≥35°</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#f97316' }}></span>30~35°</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#eab308' }}></span>25~30°</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#10b981' }}></span>20~25°</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#06b6d4' }}></span>15~20°</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#3b82f6' }}></span>&lt;15°</div>
-            </>
+            [...TEMPERATURE_SCALE, NO_DATA_BAND].map((band) => (
+              <div className="legend-item" key={band.key}>
+                <span className="legend-dot" style={{ background: band.color }}></span>
+                {band.label}
+              </div>
+            ))
           ) : (
-            <>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#dc2626' }}></span>≥50mm</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#f59e0b' }}></span>30~50mm</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#2563eb' }}></span>10~30mm</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#38bdf8' }}></span>微雨</div>
-              <div className="legend-item"><span className="legend-dot" style={{ background: '#334155' }}></span>無雨</div>
-            </>
+            [...RAINFALL_SCALE, NO_RAIN_BAND, NO_DATA_BAND].map((band) => (
+              <div className="legend-item" key={band.key}>
+                <span className="legend-dot" style={{ background: band.color }}></span>
+                {band.label}
+              </div>
+            ))
           )}
         </div>
       </div>

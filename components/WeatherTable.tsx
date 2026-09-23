@@ -1,49 +1,47 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { WeatherObservation } from '@/types/weather';
 import {
   filterSortAndPaginateWeather,
   type WeatherSortField,
   type WeatherSortOrder,
 } from '@/lib/weather-view';
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight, MapPin, Filter } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
 
 interface WeatherTableProps {
   stations: WeatherObservation[];
   selectedStation: WeatherObservation | null;
   onSelectStation: (station: WeatherObservation) => void;
+  filterKey: string;
+  onClearFilters: () => void;
 }
 
 export default function WeatherTable({
   stations,
   selectedStation,
   onSelectStation,
+  filterKey,
+  onClearFilters,
 }: WeatherTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCounty, setSelectedCounty] = useState('all');
   const [sortField, setSortField] = useState<WeatherSortField>('temperature');
   const [sortOrder, setSortOrder] = useState<WeatherSortOrder>('desc');
   const [currentPage, setCurrentPage] = useState(1);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
   const pageSize = 15;
-
-  const counties = useMemo(
-    () => [...new Set(stations.map((station) => station.county))].sort(),
-    [stations]
-  );
 
   const { filteredAndSorted: sortedStations, pageItems: paginatedStations, totalPages } =
     useMemo(
       () =>
         filterSortAndPaginateWeather(stations, {
-          searchTerm,
-          county: selectedCounty,
+          searchTerm: '',
+          county: 'all',
           sortField,
           sortOrder,
           page: currentPage,
           pageSize,
         }),
-      [stations, searchTerm, selectedCounty, sortField, sortOrder, currentPage]
+      [stations, sortField, sortOrder, currentPage]
     );
 
   // 切換排序
@@ -57,6 +55,11 @@ export default function WeatherTable({
     setCurrentPage(1);
   };
 
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setCurrentPage(1));
+    return () => window.cancelAnimationFrame(frame);
+  }, [filterKey]);
+
   const getAriaSort = (
     field: WeatherSortField
   ): React.AriaAttributes['aria-sort'] => {
@@ -64,54 +67,42 @@ export default function WeatherTable({
     return sortOrder === 'asc' ? 'ascending' : 'descending';
   };
 
+  useEffect(() => {
+    if (!selectedStation) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const selectedIndex = sortedStations.findIndex(
+        (station) => station.station_id === selectedStation.station_id
+      );
+
+      if (selectedIndex === -1) return;
+
+      const selectedPage = Math.floor(selectedIndex / pageSize) + 1;
+      if (currentPage !== selectedPage) {
+        setCurrentPage(selectedPage);
+        return;
+      }
+
+      const row = rowRefs.current.get(selectedStation.station_id);
+      const reduceMotion = window.matchMedia(
+        '(prefers-reduced-motion: reduce)'
+      ).matches;
+
+      row?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    currentPage,
+    selectedStation,
+    sortedStations,
+  ]);
+
   return (
     <div className="table-card" id="weather-table-container">
-      {/* 搜尋與篩選列 */}
-      <div className="table-controls">
-        <div className="search-bar">
-          <Search className="search-icon" />
-          <input
-            id="input-search-station"
-            type="text"
-            className="search-input"
-            aria-label="搜尋氣象測站名稱或站號"
-            placeholder="搜尋測站名稱或站號（例如：臺中、467490）..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
-
-        <div className="filter-group">
-          <div className="select-wrapper">
-            <Filter className="select-icon" />
-            <select
-              id="select-county-filter"
-              className="county-select"
-              aria-label="依縣市篩選氣象測站"
-              value={selectedCounty}
-              onChange={(e) => {
-                setSelectedCounty(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="all">全台灣所有地區</option>
-              {counties.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <span className="results-count" aria-live="polite">
-            共 {sortedStations.length} 站
-          </span>
-        </div>
-      </div>
-
       {/* 資料表格 */}
       <div className="table-scroll-container">
         <table className="weather-data-table">
@@ -155,7 +146,11 @@ export default function WeatherTable({
             {paginatedStations.length === 0 ? (
               <tr>
                 <td colSpan={6} className="table-empty">
-                  查無符合條件的氣象觀測站
+                  <span>找不到符合目前條件的測站</span>
+                  <button type="button" className="btn-empty-clear" onClick={onClearFilters}>
+                    <X className="btn-icon" />
+                    <span>清除搜尋與縣市條件</span>
+                  </button>
                 </td>
               </tr>
             ) : (
@@ -173,7 +168,12 @@ export default function WeatherTable({
                 return (
                   <tr
                     key={station.station_id}
+                    ref={(row) => {
+                      if (row) rowRefs.current.set(station.station_id, row);
+                      else rowRefs.current.delete(station.station_id);
+                    }}
                     className={`table-row ${isSelected ? 'row-selected' : ''}`}
+                    aria-selected={isSelected}
                     onClick={() => onSelectStation(station)}
                   >
                     <td>

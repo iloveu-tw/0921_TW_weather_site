@@ -18,6 +18,8 @@ export interface WeatherObservation {
   observation_time: string;
 }
 
+export type WeatherMetricMode = 'temp' | 'rain';
+
 export interface WeatherApiSuccessResponse {
   success: true;
   count: number;
