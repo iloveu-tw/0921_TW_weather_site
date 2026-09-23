@@ -18,7 +18,7 @@ npm run ops:status
 
 ## 2. GitHub Actions 每小時排程
 
-正式排程定義於 `.github/workflows/sync-cwa.yml`，每小時整點呼叫 Production `/api/refresh`。GitHub Repository Actions Secret `CRON_SECRET` 必須與 Vercel Production 的同名環境變數一致。
+正式排程定義於 `.github/workflows/sync-cwa.yml`，每小時第 17 分鐘呼叫 Production `/api/refresh`，避開 GitHub Actions 整點的排程壅塞時段。GitHub Repository Actions Secret `CRON_SECRET` 必須與 Vercel Production 的同名環境變數一致。
 
 - GitHub Actions 頁面可使用 **Run workflow** 手動驗證。
 - 成功條件為 HTTP `200`、`success: true` 且同步筆數至少 500 筆。
