@@ -38,6 +38,26 @@ function getMarkerStyleForZoom(zoom: number) {
   return { radius: 7, weight: 1.5, opacity: 0.9, fillOpacity: 0.85 };
 }
 
+function getMarkerDataStyle(
+  station: WeatherObservation,
+  metricMode: WeatherMetricMode,
+  zoomFillOpacity: number
+) {
+  const band =
+    metricMode === 'temp'
+      ? getTemperatureBand(station.temperature)
+      : getRainfallBand(station.rainfall);
+  const isNoData = band.key === NO_DATA_BAND.key;
+  const isNoRain = band.key === NO_RAIN_BAND.key;
+
+  return {
+    fillColor: band.color,
+    fillOpacity: isNoRain ? 0.08 : isNoData ? 0.28 : zoomFillOpacity,
+    color: isNoData || isNoRain ? '#f8fafc' : '#ffffff',
+    dashArray: isNoData ? '3, 3' : undefined,
+  };
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => {
     const entities: Record<string, string> = {
@@ -77,9 +97,13 @@ function buildPopupContent(
   const isTemperature = metricMode === 'temp';
   const primaryValue = isTemperature ? tempText : rainText;
   const primaryLabel = isTemperature ? '目前氣溫' : '目前累積雨量';
-  const primaryColor = isTemperature
+  const primaryBand = isTemperature
     ? getTemperatureBand(station.temperature).color
     : getRainfallBand(station.rainfall).color;
+  const primaryColor =
+    primaryBand === NO_RAIN_BAND.color || primaryBand === NO_DATA_BAND.color
+      ? '#cbd5e1'
+      : primaryBand;
   const secondaryMetric = isTemperature
     ? { label: '累積雨量', value: rainText }
     : { label: '目前氣溫', value: tempText };
@@ -136,11 +160,25 @@ export default function WeatherMap({
   const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
   const countyLayerRef = useRef<L.GeoJSON | null>(null);
   const showCountiesRef = useRef<boolean>(true);
+  const stationByIdRef = useRef(
+    new Map(stations.map((station) => [station.station_id, station]))
+  );
+  const metricModeRef = useRef<WeatherMetricMode>(metricMode);
 
   const [baseMap, setBaseMap] = useState<BaseMapType>('esriDark');
   const [showCounties, setShowCounties] = useState<boolean>(true);
   const [showStations, setShowStations] = useState<boolean>(true);
   const [mapLoaded, setMapLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    stationByIdRef.current = new Map(
+      stations.map((station) => [station.station_id, station])
+    );
+  }, [stations]);
+
+  useEffect(() => {
+    metricModeRef.current = metricMode;
+  }, [metricMode]);
 
   // 1. 初始化地圖
   useEffect(() => {
@@ -167,6 +205,10 @@ export default function WeatherMap({
 
       // 新增縮放控制項到右下角
       L.control.zoom({ position: 'bottomright' }).addTo(map);
+      const zoomIn = mapContainerRef.current.querySelector('.leaflet-control-zoom-in');
+      const zoomOut = mapContainerRef.current.querySelector('.leaflet-control-zoom-out');
+      zoomIn?.setAttribute('aria-label', '放大地圖');
+      zoomOut?.setAttribute('aria-label', '縮小地圖');
 
       // 建立底圖圖層群組
       const baseTileGroup = L.layerGroup().addTo(map);
@@ -178,12 +220,22 @@ export default function WeatherMap({
 
       map.on('zoomend', () => {
         const style = getMarkerStyleForZoom(map.getZoom());
-        markersRef.current.forEach((marker) => {
+        markersRef.current.forEach((marker, stationId) => {
+          const station = stationByIdRef.current.get(stationId);
+          const dataStyle = station
+            ? getMarkerDataStyle(
+                station,
+                metricModeRef.current,
+                style.fillOpacity
+              )
+            : null;
           marker.setRadius(style.radius);
           marker.setStyle({
             weight: style.weight,
             opacity: style.opacity,
-            fillOpacity: style.fillOpacity,
+            fillOpacity: dataStyle?.fillOpacity ?? style.fillOpacity,
+            color: dataStyle?.color ?? '#ffffff',
+            dashArray: dataStyle?.dashArray,
           });
         });
       });
@@ -374,22 +426,27 @@ export default function WeatherMap({
       stations.forEach((station) => {
         if (!station.latitude || !station.longitude) return;
 
-        const color = getTemperatureBand(station.temperature).color;
         const markerStyle = getMarkerStyleForZoom(
           mapInstanceRef.current?.getZoom() ?? 7.5
+        );
+        const dataStyle = getMarkerDataStyle(
+          station,
+          metricModeRef.current,
+          markerStyle.fillOpacity
         );
 
         const marker = L.circleMarker([station.latitude, station.longitude], {
           renderer,
           radius: markerStyle.radius,
-          fillColor: color,
-          color: '#ffffff',
+          fillColor: dataStyle.fillColor,
+          color: dataStyle.color,
+          dashArray: dataStyle.dashArray,
           weight: markerStyle.weight,
           opacity: markerStyle.opacity,
-          fillOpacity: markerStyle.fillOpacity,
+          fillOpacity: dataStyle.fillOpacity,
         });
 
-        marker.bindPopup(buildPopupContent(station, 'temp'), {
+        marker.bindPopup(buildPopupContent(station, metricModeRef.current), {
           className: 'glass-popup',
           closeButton: true,
           offset: [0, -6],
@@ -397,6 +454,20 @@ export default function WeatherMap({
 
         marker.on('click', () => {
           onSelectStation(station);
+        });
+        marker.on('popupopen', (event) => {
+          const popupElement = event.popup.getElement();
+          popupElement?.setAttribute('role', 'region');
+          popupElement?.setAttribute('aria-live', 'polite');
+          popupElement?.setAttribute(
+            'aria-label',
+            `${station.station_name}測站氣象資訊`
+          );
+          const closeButton = popupElement?.querySelector(
+            '.leaflet-popup-close-button'
+          );
+          closeButton?.setAttribute('aria-label', '關閉測站氣象資訊');
+          closeButton?.setAttribute('title', '關閉測站氣象資訊');
         });
 
         marker.addTo(stationLayer);
@@ -414,11 +485,20 @@ export default function WeatherMap({
       const station = stationById.get(stationId);
       if (!station) return;
 
+      const markerStyle = getMarkerStyleForZoom(
+        mapInstanceRef.current?.getZoom() ?? 7.5
+      );
+      const dataStyle = getMarkerDataStyle(
+        station,
+        metricMode,
+        markerStyle.fillOpacity
+      );
+
       marker.setStyle({
-        fillColor:
-          metricMode === 'temp'
-            ? getTemperatureBand(station.temperature).color
-            : getRainfallBand(station.rainfall).color,
+        fillColor: dataStyle.fillColor,
+        fillOpacity: dataStyle.fillOpacity,
+        color: dataStyle.color,
+        dashArray: dataStyle.dashArray,
       });
       marker.setPopupContent(buildPopupContent(station, metricMode));
     });
@@ -467,17 +547,26 @@ export default function WeatherMap({
         className="map-view"
         role="region"
         aria-label="台灣氣象測站互動地圖"
+        aria-describedby="map-keyboard-alternative"
       />
+      <p id="map-keyboard-alternative" className="sr-only">
+        可使用上方控制按鈕切換地圖內容；如需以鍵盤選擇測站，請使用右側資料清單的地圖定位按鈕。
+      </p>
 
       {/* 地圖上層浮動控制欄 (Glassmorphism Toolbar) */}
       <div className="map-toolbar">
         <div className="toolbar-group">
           {/* 底圖圖資切換 */}
-          <div className="toolbar-metric-switch basemap-switch">
+          <div
+            className="toolbar-metric-switch basemap-switch"
+            role="group"
+            aria-label="底圖選擇"
+          >
             <button
               id="btn-basemap-dark"
               className={`metric-btn ${baseMap === 'esriDark' ? 'active' : ''}`}
               aria-pressed={baseMap === 'esriDark'}
+              aria-label="切換為 Esri 深色畫布"
               onClick={() => setBaseMap('esriDark')}
               title="切換為 Esri 深色極簡畫布（免 Key、無浮水印）"
             >
@@ -488,6 +577,7 @@ export default function WeatherMap({
               id="btn-basemap-osm"
               className={`metric-btn ${baseMap === 'osm' ? 'active' : ''}`}
               aria-pressed={baseMap === 'osm'}
+              aria-label="切換為 OpenStreetMap 標準地圖"
               onClick={() => setBaseMap('osm')}
               title="切換為 OpenStreetMap 標準街道圖（免 Key）"
             >
@@ -498,6 +588,7 @@ export default function WeatherMap({
               id="btn-basemap-satellite"
               className={`metric-btn ${baseMap === 'satellite' ? 'active' : ''}`}
               aria-pressed={baseMap === 'satellite'}
+              aria-label="切換為 Esri 衛星影像"
               onClick={() => setBaseMap('satellite')}
               title="切換為 Esri 衛星空照圖（免 Key）"
             >
@@ -507,7 +598,11 @@ export default function WeatherMap({
           </div>
 
           {/* 指標切換 */}
-          <div className="toolbar-metric-switch">
+          <div
+            className="toolbar-metric-switch"
+            role="group"
+            aria-label="氣象資料模式"
+          >
             <button
               id="btn-metric-temp"
               className={`metric-btn ${metricMode === 'temp' ? 'active' : ''}`}
@@ -531,11 +626,16 @@ export default function WeatherMap({
           </div>
 
           {/* 圖層開關 */}
-          <div className="toolbar-layer-toggles">
+          <div
+            className="toolbar-layer-toggles"
+            role="group"
+            aria-label="地圖圖層"
+          >
             <button
               id="btn-toggle-counties"
               className={`layer-toggle-btn ${showCounties ? 'active' : ''}`}
               aria-pressed={showCounties}
+              aria-label="切換台灣縣市邊界圖層"
               onClick={() => setShowCounties(!showCounties)}
               title="切換顯示台灣縣市邊界圖層"
             >
@@ -547,6 +647,7 @@ export default function WeatherMap({
               id="btn-toggle-stations"
               className={`layer-toggle-btn ${showStations ? 'active' : ''}`}
               aria-pressed={showStations}
+              aria-label="切換氣象測站標記"
               onClick={() => setShowStations(!showStations)}
               title="切換顯示氣象站點"
             >
@@ -569,22 +670,30 @@ export default function WeatherMap({
       </div>
 
       {/* 色階圖例 (Legend) */}
-      <div className="map-legend">
-        <span className="legend-title">
+      <div className="map-legend" role="group" aria-labelledby="map-legend-title">
+        <span className="legend-title" id="map-legend-title">
           {metricMode === 'temp' ? '氣溫階層 (°C)' : '即時累積降雨 (mm)'}
         </span>
         <div className="legend-items">
           {metricMode === 'temp' ? (
             [...TEMPERATURE_SCALE, NO_DATA_BAND].map((band) => (
               <div className="legend-item" key={band.key}>
-                <span className="legend-dot" style={{ background: band.color }}></span>
+                <span
+                  className={`legend-dot legend-dot-${band.key}`}
+                  style={{ background: band.color }}
+                  aria-hidden="true"
+                ></span>
                 {band.label}
               </div>
             ))
           ) : (
             [...RAINFALL_SCALE, NO_RAIN_BAND, NO_DATA_BAND].map((band) => (
               <div className="legend-item" key={band.key}>
-                <span className="legend-dot" style={{ background: band.color }}></span>
+                <span
+                  className={`legend-dot legend-dot-${band.key}`}
+                  style={{ background: band.color }}
+                  aria-hidden="true"
+                ></span>
                 {band.label}
               </div>
             ))
