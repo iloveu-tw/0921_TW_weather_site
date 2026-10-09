@@ -35,6 +35,7 @@
 
 - **台灣 Web GIS 底圖圖台**：以 Leaflet.js 搭配 Esri 深色／衛星底圖及 OpenStreetMap，支援流暢平移、縮放與全島視野復位。
 - **全台 800+ 氣象測站即時視覺化**：從 Neon PostgreSQL 讀取最新 CWA 快照（目前約 876 座，實際數量以 API 回傳為準）並精確定位，支援「**氣溫分布**」與「**降雨分布**」雙模式動態分色。
+- **縣市未來 36 小時預報**：點選「天氣預報」並選擇縣市，可查看 CWA 的三個預報時段、天氣、最高／最低溫與降雨機率；預報與測站觀測分區呈現。
 - **台灣 22 縣市行政區圖層**：疊加台灣縣市界線 GeoJSON 多邊形圖層，支援邊框發光、懸停高亮（Hover Highlight）與縣市名稱標籤。
 - **空間彈窗（Glassmorphism Popup）**：點擊任一測站標記即展開氣溫、雨量、相對濕度、風速與觀測時間之卡片。
 - **資料檢索與飛入定位（Fly-to Sync）**：
@@ -88,6 +89,7 @@ Developer → Feature Branch → Pull Request + Vercel Preview → Merge main �
 - **失敗策略**：保留上一份有效資料，避免不完整資料取代正式快照。
 - **時間定義**：觀測時間以 CWA 回傳值為準，因此可能與目前時間不同。
 - **過期判定**：CWA 觀測時間距目前時間超過 120 分鐘時，前端會顯示「CWA 資料已過期」。
+- **預報資料**：`F-C0032-001` 由伺服器讀取並快取 30 分鐘；畫面標示取得時間。預報暫時無法讀取時，觀測地圖與表格仍可使用。
 
 ---
 
@@ -107,6 +109,7 @@ Developer → Feature Branch → Pull Request + Vercel Preview → Merge main �
 | Route | Method | 用途 | 存取方式 |
 |---|---|---|---|
 | `/api/weather` | `GET` | 取得最新成功同步的氣象快照與新鮮度資訊 | Public |
+| `/api/forecast` | `GET` | 取得 CWA 22 縣市未來 36 小時預報 | Public |
 | `/api/refresh` | `GET` / `POST` | 從 CWA 同步、驗證並更新 Neon 快照 | Bearer `CRON_SECRET` |
 
 `/api/refresh` 僅供 Server-to-Server 排程使用，不應從瀏覽器前端呼叫或公開 Secret。
@@ -134,7 +137,7 @@ docs/architecture/    # 可驗證的系統流程圖規格
 
 - Node.js 24（本專案 Production Build 與原生 TypeScript 測試的驗證版本）
 - `DATABASE_URL`：啟動網站並讀取 Neon 最新快照時必要
-- `CWA_API_KEY`、至少 32 字元的 `CRON_SECRET`：執行 `/api/refresh` 同步時必要
+- `CWA_API_KEY`：讀取預報與執行 `/api/refresh` 同步時必要；至少 32 字元的 `CRON_SECRET`：執行同步時必要
 
 ### 1. Clone Repository
 

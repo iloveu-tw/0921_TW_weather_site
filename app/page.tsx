@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import WeatherFilters from '@/components/WeatherFilters';
 import WeatherStats from '@/components/WeatherStats';
 import WeatherTable from '@/components/WeatherTable';
+import WeatherForecast from '@/components/WeatherForecast';
 import {
   WeatherApiResponse,
   WeatherMetricMode,
@@ -47,6 +48,7 @@ export default function HomePage() {
   const [metricMode, setMetricMode] = useState<WeatherMetricMode>('temp');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCounty, setSelectedCounty] = useState('all');
+  const [forecastOpen, setForecastOpen] = useState(false);
 
   const counties = useMemo(
     () => [...new Set(stations.map((station) => station.county))].sort(),
@@ -191,6 +193,8 @@ export default function HomePage() {
           onSearchTermChange={handleSearchTermChange}
           onCountyChange={handleCountyChange}
           onClear={handleClearFilters}
+          forecastOpen={forecastOpen}
+          onToggleForecast={() => setForecastOpen((open) => !open)}
         />
 
         {/* GIS 地圖與氣象資料表分割視窗 */}
@@ -216,7 +220,8 @@ export default function HomePage() {
           </section>
 
           {/* 右側 / 下側：氣象站觀測數據清單 */}
-          <section className="gis-table-section" aria-label="氣象站點觀測數據清單">
+          <section className={`gis-table-section ${forecastOpen ? 'with-forecast' : ''}`} aria-label="氣象站點觀測數據清單與縣市預報">
+            {forecastOpen && <WeatherForecast county={selectedCounty} />}
             <div className="section-header">
               <div className="section-title-wrap">
                 <span className="section-indicator green"></span>
