@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Filter, Search, X } from 'lucide-react';
+import { CloudSun, Filter, Search, X } from 'lucide-react';
 
 interface WeatherFiltersProps {
   counties: string[];
@@ -12,6 +12,8 @@ interface WeatherFiltersProps {
   onSearchTermChange: (value: string) => void;
   onCountyChange: (value: string) => void;
   onClear: () => void;
+  forecastOpen: boolean;
+  onToggleForecast: () => void;
 }
 
 export default function WeatherFilters({
@@ -23,6 +25,8 @@ export default function WeatherFilters({
   onSearchTermChange,
   onCountyChange,
   onClear,
+  forecastOpen,
+  onToggleForecast,
 }: WeatherFiltersProps) {
   const hasActiveFilters = searchTerm.trim() !== '' || selectedCounty !== 'all';
 
@@ -71,6 +75,16 @@ export default function WeatherFilters({
           </button>
         )}
       </div>
+
+      <button
+        type="button"
+        className={`btn-forecast-toggle ${forecastOpen ? 'active' : ''}`}
+        aria-pressed={forecastOpen}
+        onClick={onToggleForecast}
+      >
+        <CloudSun aria-hidden="true" />
+        <span>天氣預報</span>
+      </button>
     </section>
   );
 }
