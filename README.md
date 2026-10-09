@@ -19,7 +19,13 @@
 
 ### [▶ 開啟 Taiwan Weather GIS Live Demo](https://taiwan-weather-site.vercel.app)
 
-[![台灣即時氣象 GIS 觀測圖台預覽，包含全台測站地圖、氣象統計卡與詳細資料表](./public/taiwan-weather-dashboard.png)](https://taiwan-weather-site.vercel.app)
+[![台灣即時氣象 GIS 最新觀測圖台，包含全台測站地圖、統計卡、資料表與天氣預報入口](./public/taiwan-weather-dashboard.png)](https://taiwan-weather-site.vercel.app)
+
+點選「天氣預報」並選擇縣市，即可在地圖旁查看未來 36 小時的三個預報時段：
+
+[![選擇臺中市後顯示三張天氣預報卡、測站地圖與資料表](./public/taiwan-weather-forecast.png)](https://taiwan-weather-site.vercel.app)
+
+> 截圖攝於 2026-10-09；畫面中的觀測數值、資料時間與預報內容會隨 CWA 更新，請以 Live 網站為準。預報卡為縣市預報，並非測站觀測值。
 
 進入網站後可以：
 
@@ -28,6 +34,8 @@
 - 從右側資料表定位測站，地圖會移動至該位置並開啟詳細資訊視窗。
 
 > **資料更新狀態**：Live 網站從 Neon PostgreSQL 讀取最新成功同步的 CWA 快照；GitHub Actions 排定每小時第 17 分鐘觸發更新，實際開始時間可能受 GitHub 排程負載影響。同步失敗時會保留前一份有效快照。
+
+**2026-10-09 更新**：[PR #6](https://github.com/iloveu-tw/0921_TW_weather_site/pull/6) 將縣市 36 小時預報部署至 Production；Preview 三張預報卡與 Live 新舊功能的手動抽檢均已通過。
 
 ---
 
@@ -57,6 +65,7 @@
 > 點擊流程圖可開啟互動版本，支援亮／暗主題、搜尋、節點聚焦、路徑追蹤、縮放與匯出。
 
 - **綠色主線**：CWA 觀測資料經安全入口、驗證管線與 PostgreSQL Transaction 寫入 Neon，再由 Web GIS 查詢最新有效快照。
+- **灰色預報線**：CWA `F-C0032-001` 經伺服器端 `/api/forecast` 讀取並快取 30 分鐘，在選定縣市後顯示三張預報卡；預報不寫入 Neon 觀測快照。
 - **紅色安全線**：GitHub Actions 每小時使用 `CRON_SECRET` 呼叫 `/api/refresh`，Neon 租約鎖避免重複同步。
 - **紫色維運／發布線**：同步健康狀態可獨立檢查；`main` Push 會觸發 Vercel Production 自動部署。
 
