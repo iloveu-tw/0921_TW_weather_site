@@ -3,7 +3,7 @@
 > **專案全稱**：AIoT DIC-2 — 台灣即時氣象空間資訊系統 (CWA Weather GIS)  
 > **建立日期**：2026-09-21  
 > **GitHub 倉庫**：[https://github.com/iloveu-tw/0921_TW_weather_site](https://github.com/iloveu-tw/0921_TW_weather_site)  
-> **目前分支**：`main`
+> **文件整理基準**：`origin/main`（目前工作分支為文件檢視分支）
 > **本地開發伺服器**：`http://localhost:3000`  
 > **Production**：<https://taiwan-weather-site.vercel.app>（`main` 自動部署）
 
@@ -165,11 +165,11 @@ taiwan-weather-site/
 交接後可依專案需求選擇以下任一方向繼續推進：
 
 ### 🎯 方向 A：完成 Live 維運驗收
-* **目前狀態**：Vercel Production、Neon PostgreSQL、GitHub 自動部署及機密環境變數均已完成設定。
+* **目前狀態**：Vercel Production、Neon PostgreSQL、GitHub 自動部署及機密環境變數均已完成設定；P1-06 Staging 與回復演練仍待完成。
 * **待處理工作**：
-  1. 完成 P1-05 受控失敗、API／UI 回歸與維運文件驗收。
-  2. 完成 P1-06 Staging、跨瀏覽器、圖資 attribution 與 Rollback 演練。
-  3. 確認 Vercel 方案與更新頻率後，建立受 `CRON_SECRET` 保護的 CWA Live 排程。
+  1. 建立與 Production 分離的 Staging 資料庫、憑證與部署設定。
+  2. 完成跨瀏覽器、圖資 attribution、失敗復原與 Rollback 演練。
+  3. 重新檢查 Production 資料新鮮度、GitHub Actions 排程與 `/api/weather`。
 
 ---
 
